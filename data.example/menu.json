@@ -1,0 +1,548 @@
+{
+  "version": 1,
+  "menu": [
+    {
+      "kind": "action",
+      "label": "Beijer.bot",
+      "func": "EditBeijerBot",
+      "barbreak": true
+    },
+    {
+      "kind": "action",
+      "label": "Edit library…",
+      "func": "OpenLibraryEditor"
+    },
+    {
+      "kind": "separator"
+    },
+    {
+      "kind": "heading",
+      "label": "SNIPPET LIBRARY:"
+    },
+    {
+      "kind": "submenu",
+      "label": "• HTML:",
+      "items": [
+        {
+          "kind": "text",
+          "label": "• HTML link",
+          "value": "<a href=\"https://michaelbeijer.co.uk/\" target=\"_new\" title=\"(my current website)\">Beijer.uk</a>"
+        }
+      ]
+    },
+    {
+      "kind": "submenu",
+      "label": "• Special characters:",
+      "items": [
+        {
+          "kind": "text",
+          "label": "• 👍📎",
+          "value": "👍📎"
+        },
+        {
+          "kind": "text",
+          "label": "• (Ctrl-Shift-O)",
+          "value": "• "
+        },
+        {
+          "kind": "text",
+          "label": "≈ (approximately equal to)",
+          "value": "≈"
+        },
+        {
+          "kind": "text",
+          "label": "– [En dash](Ctrl-Shift-6)",
+          "value": "–"
+        },
+        {
+          "kind": "text",
+          "label": "— [Em dash](Ctrl-Shift--)",
+          "value": "—"
+        },
+        {
+          "kind": "text",
+          "label": "Non-breaking space",
+          "value": " "
+        },
+        {
+          "kind": "text",
+          "label": "′ ″ ‴ ⁗ [Prime symbols]",
+          "value": "′ ″ ‴ ⁗"
+        },
+        {
+          "kind": "text",
+          "label": "ä, ë, ï, ö, ü",
+          "value": "ä, ë, ï, ö, ü"
+        },
+        {
+          "kind": "text",
+          "label": "ë",
+          "value": "ë"
+        },
+        {
+          "kind": "text",
+          "label": "é",
+          "value": "é"
+        },
+        {
+          "kind": "text",
+          "label": "ï",
+          "value": "ï"
+        },
+        {
+          "kind": "text",
+          "label": "ö",
+          "value": "ö"
+        },
+        {
+          "kind": "text",
+          "label": "ó",
+          "value": "ó"
+        },
+        {
+          "kind": "text",
+          "label": "ü",
+          "value": "ü"
+        },
+        {
+          "kind": "text",
+          "label": "⇄",
+          "value": "⇄"
+        },
+        {
+          "kind": "text",
+          "label": "→",
+          "value": "→"
+        },
+        {
+          "kind": "text",
+          "label": "➢",
+          "value": "➢"
+        },
+        {
+          "kind": "text",
+          "label": "➤",
+          "value": "➤"
+        },
+        {
+          "kind": "text",
+          "label": "➜ (type: “arr”)",
+          "value": "➜→"
+        },
+        {
+          "kind": "text",
+          "label": "✉",
+          "value": "✉"
+        },
+        {
+          "kind": "text",
+          "label": "▶",
+          "value": "▶"
+        },
+        {
+          "kind": "text",
+          "label": "™ ® ©",
+          "value": "™ ® ©"
+        },
+        {
+          "kind": "text",
+          "label": "€",
+          "value": "€"
+        },
+        {
+          "kind": "text",
+          "label": "↔",
+          "value": "↔"
+        },
+        {
+          "kind": "text",
+          "label": "TAB (type: “tabb”)",
+          "value": "\t"
+        },
+        {
+          "kind": "text",
+          "label": "✔ (type: “cc”)",
+          "value": "✔"
+        },
+        {
+          "kind": "text",
+          "label": "Unicode subscript/superscript: ₂ ₃ ₄ / ² ³ ⁴",
+          "value": "₂ ₃ ₄ / ² ³ ⁴"
+        },
+        {
+          "kind": "text",
+          "label": "Misc. special chars",
+          "value": " ▣ ■ □ ▢ ◯ ▲ ▶ ► ▼ ◆ ◢ ◣ ◤ ◥ ✪ ✺ ❋ ⁂ ∰ ⋰ ⋱ ∶ ∷ ∴ ∵ ⋘ ⋙ ✈ ✿ ☺ ☻ ☹ ☼ ☂ ☃ ⌇ ⚛ ⌨ ✆ ☎  ⌘ ⌥ ⇧ ↩ ✞ ✡ ☭ ← → ↑ ↓ ➫ ⬇ ⬆ ☜ ☞ ☝ ☟ ✍ ✎ ✌ ☮ ✔ ★ ☆ ♺ ⚑ ⚐ ✉ ✄ ⌲ ✈ ♦ ♣ ♠ ♥ ❤ ♡ ♪ ♩ ♫ ♬ ♯ ♀ ♂ ⚢ ⚣ ❑ ❒ ◈ ◐ ◑ ✖ ∞ « » ‹ › “ ” “ ” „ ‚ – — | ⁄ \\ [ ]  § ¶ ¡ ¿ ‽ ⁂ ※ ± × ~ ≈ ÷ ≠ π † ‡ ¥ € $ ¢ £ ß © ® @ ™ ° ‰ … · • ● ⌨"
+        }
+      ]
+    },
+    {
+      "kind": "submenu",
+      "label": "• Regex:",
+      "items": [
+        {
+          "kind": "text",
+          "label": "Straight to curly quotes",
+          "value": "\"([^\"]+)\" … “$1”"
+        },
+        {
+          "kind": "text",
+          "label": "wkwkwk",
+          "value": "wkwkwk"
+        }
+      ]
+    },
+    {
+      "kind": "separator"
+    },
+    {
+      "kind": "heading",
+      "label": "BOOKMARKS:"
+    },
+    {
+      "kind": "separator"
+    },
+    {
+      "kind": "heading",
+      "label": "MISC. commands:"
+    },
+    {
+      "kind": "heading",
+      "label": "🔊 “Edit AutoCorrect” (edit AutoCorrect_v2.ahk)"
+    },
+    {
+      "kind": "separator"
+    },
+    {
+      "kind": "heading",
+      "label": "CHATGPT:",
+      "barbreak": true
+    },
+    {
+      "kind": "action",
+      "label": "• Ask ChatGPT question (in any language)",
+      "func": "GenerateReply"
+    },
+    {
+      "kind": "action",
+      "label": "• Translate (Dutch to English)",
+      "func": "TranslateDutchEnglish"
+    },
+    {
+      "kind": "action",
+      "label": "• Translate (English to Dutch)",
+      "func": "TranslateEnglishDutch"
+    },
+    {
+      "kind": "action",
+      "label": " Localize",
+      "func": "Localize"
+    },
+    {
+      "kind": "action",
+      "label": "• Translate (Custom)",
+      "func": "TranslateCustom"
+    },
+    {
+      "kind": "action",
+      "label": "🔊 Explain (“Explain”)",
+      "func": "Explain"
+    },
+    {
+      "kind": "action",
+      "label": "• Proofread (multilingual)",
+      "func": "ProofreadMulti"
+    },
+    {
+      "kind": "action",
+      "label": "• Rephrase (5 options)",
+      "func": "Rephrase"
+    },
+    {
+      "kind": "action",
+      "label": "• Make it sound better",
+      "func": "MakeItSoundBetter"
+    },
+    {
+      "kind": "action",
+      "label": "• Summarise",
+      "func": "Summarise"
+    },
+    {
+      "kind": "action",
+      "label": "• Expand",
+      "func": "Expand"
+    },
+    {
+      "kind": "action",
+      "label": "• Summarize GitHub Issue/Bug",
+      "func": "SummarizeGitHubIssue"
+    },
+    {
+      "kind": "separator"
+    },
+    {
+      "kind": "heading",
+      "label": "TEXT CONVERSIONS:"
+    },
+    {
+      "kind": "heading",
+      "label": "🔊 “Bracket [number]” (puts numbers in brackets: (1), (2), etc.)"
+    },
+    {
+      "kind": "action",
+      "label": "• Uppercase",
+      "func": "ClipboardPasteUppercase"
+    },
+    {
+      "kind": "action",
+      "label": "• Lowercase",
+      "func": "ClipboardPasteLowercase"
+    },
+    {
+      "kind": "action",
+      "label": "• Title case",
+      "func": "ClipboardPasteTitlecase"
+    },
+    {
+      "kind": "action",
+      "label": "• Sentence case",
+      "func": "ClipboardPasteSentenceCase"
+    },
+    {
+      "kind": "action",
+      "label": "• Single curly quotes: ‘Example’",
+      "func": "SingleCurlyQuotes"
+    },
+    {
+      "kind": "action",
+      "label": "• Double curly quotes: “Example”",
+      "func": "DoubleCurlyQuotes"
+    },
+    {
+      "kind": "action",
+      "label": "• Round brackets: (Example)",
+      "func": "PutInRoundBrackets"
+    },
+    {
+      "kind": "action",
+      "label": "• Square brackets: [Example]",
+      "func": "PutInSquareBrackets"
+    },
+    {
+      "kind": "action",
+      "label": "• Remove soft hyphens (U+00AD)",
+      "func": "RemoveSoftHyphens"
+    },
+    {
+      "kind": "action",
+      "label": "• Convert double quotes to single quotes",
+      "func": "DoubleToSingleQuotes"
+    },
+    {
+      "kind": "action",
+      "label": "• Make <b>bold</b>",
+      "func": "BoldHtml"
+    },
+    {
+      "kind": "heading",
+      "label": "LOCAL SEARCHES:",
+      "barbreak": true
+    },
+    {
+      "kind": "action",
+      "label": "🔊 Search desktop (Ctrl-Shift-D)",
+      "func": "dtSearch"
+    },
+    {
+      "kind": "action",
+      "label": "• Search LogiTerm (Ctrl-Alt-L)",
+      "func": "LogiTerm"
+    },
+    {
+      "kind": "separator"
+    },
+    {
+      "kind": "heading",
+      "label": "WEB SEARCHES (multiple engines):"
+    },
+    {
+      "kind": "action",
+      "label": "• MultiSearch (NL ➜ EN)",
+      "func": "MultiSearch",
+      "arg": "NL-EN"
+    },
+    {
+      "kind": "action",
+      "label": "• MultiSearch (EN ➜ NL)",
+      "func": "MultiSearch",
+      "arg": "EN-NL"
+    },
+    {
+      "kind": "separator"
+    },
+    {
+      "kind": "heading",
+      "label": "WEB SEARCHES:"
+    },
+    {
+      "kind": "search",
+      "label": "• AcronymFinder",
+      "url": "https://www.acronymfinder.com/~/search/af.aspx?string=exact&Acronym={q}",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• BabelNet (nl-en)",
+      "url": "https://babelnet.org/search?word={q}&lang=NL&transLang=EN",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• BabelNet (en-nl)",
+      "url": "https://babelnet.org/search?word={q}&lang=EN&transLang=NL",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• Beijerterm.com (Ctrl-Alt-b)",
+      "url": "https://beijerterm.com/?q={q}",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• FELOnline (Financieel Economisch Lexicon)",
+      "url": "http://www.felonline.nl/felo/?keywords={q}&action=user_translate&lexiconSearch=Vertaal",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "🔊 Google this! (Ctrl+/)",
+      "url": "http://www.google.co.uk/search?hl=en&safe=off&q={q}",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• Google Patents",
+      "url": "https://patents.google.com/?q=\"{q}\"",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• IATE (nl-en)",
+      "url": "https://iate.europa.eu/search/byUrl?term={q}&sl=nl&tl=en",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• IATE (en-nl)",
+      "url": "https://iate.europa.eu/search/byUrl?term={q}&sl=en&tl=nl",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• Juremy (nl-en)",
+      "url": "https://juremy.com/search?src=nld&dst=eng&q={q}&opts=ia&tool=iws",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• Juremy (en-nl)",
+      "url": "https://juremy.com/search?src=eng&dst=nld&q={q}&opts=ia&tool=iws",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• JurLex (nl-en)",
+      "url": "https://www.lexicons.nl/lemma?searchterm={q}&SESSIONdictionary=jel_nlen",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• JurLex (en-nl)",
+      "url": "https://www.lexicons.nl/lemma?searchterm={q}&SESSIONdictionary=jel_ennl",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• Linguee (Dutch↔English)",
+      "url": "https://www.linguee.com/dutch-english/search?source=auto&query={q}",
+      "browser": "msedge"
+    },
+    {
+      "kind": "action",
+      "label": "• Microsoft Terminology Search",
+      "func": "MicrosoftTerminologySearch"
+    },
+    {
+      "kind": "search",
+      "label": "• Oxforddictionaries.com",
+      "url": "https://premium.oxforddictionaries.com/definition/english/{q}",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• Proz (nl-en)",
+      "url": "https://www.proz.com/search/?term={q}&from=dut&to=eng&results_per_page=25&es=1",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• Proz (en-nl)",
+      "url": "https://www.proz.com/search/?term={q}&from=eng&to=dut&results_per_page=25&es=1",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• Reverso (nl-en)",
+      "url": "https://context.reverso.net/translation/dutch-english/{q}",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• Reverso (en-nl)",
+      "url": "https://context.reverso.net/translation/english-dutch/{q}",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• Van Dale (nl-en)",
+      "url": "https://zoeken.vandale.nl/?dictionaryId=gne&query={q}",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• Van Dale (en-nl)",
+      "url": "https://zoeken.vandale.nl/?dictionaryId=gen&query={q}",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• Wikipedia (Dutch)",
+      "url": "https://nl.wikipedia.org/w/index.php?search={q}",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• Wikipedia (English)",
+      "url": "https://en.wikipedia.org/w/index.php?search={q}",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• Wiktionary (Dutch)",
+      "url": "https://nl.wiktionary.org/wiki/{q}",
+      "browser": "msedge"
+    },
+    {
+      "kind": "search",
+      "label": "• Wiktionary (English)",
+      "url": "https://en.wiktionary.org/wiki/{q}",
+      "browser": "msedge"
+    },
+    {
+      "kind": "separator"
+    }
+  ],
+  "hotstrings": []
+}

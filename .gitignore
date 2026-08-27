@@ -1,0 +1,20 @@
+# ---------------------------------------------------------------------------
+# Personal data — never committed.
+#
+# Everything the menu shows (snippets, passwords, bookmarks, searches, prompts)
+# lives in data/ and stays on this machine. A fresh install copies the generic
+# starter set from data.example/ on first run.
+# ---------------------------------------------------------------------------
+/data/
+
+# API keys and other local settings
+*.ini
+!*.example.ini
+
+# Editor / tooling noise
+*.bak
+desktop.ini
+Thumbs.db
+
+# Local reference material, not part of the project
+/_refs/
