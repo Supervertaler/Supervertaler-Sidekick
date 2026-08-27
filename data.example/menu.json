@@ -3,6 +3,11 @@
   "menu": [
     {
       "kind": "action",
+      "label": "Clipboard history…  (Ctrl+Alt+C)",
+      "func": "OpenClipboardManager"
+    },
+    {
+      "kind": "action",
       "label": "Beijer.bot",
       "func": "EditBeijerBot",
       "barbreak": true

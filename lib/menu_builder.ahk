@@ -41,11 +41,17 @@ PopulateMenu(m, items) {
     ; them distinct without changing what the user sees.
     used := Map()
 
+    ; Windows draws menu items by position, so headings are collected as we go
+    ; and styled once the menu is complete.
+    headings := []
+    pos := 0
+
     for item in items {
         kind := GetKey(item, "kind", "")
 
         if (kind = "separator") {
             m.Add()
+            pos++
             continue
         }
 
@@ -59,8 +65,12 @@ PopulateMenu(m, items) {
                 m.Add(label, sub, opts)
 
             case "heading":
+                ; Deliberately NOT disabled. A disabled item is drawn greyed
+                ; out by Windows, which made every section title look
+                ; unavailable. Left enabled it draws in normal text; clicking
+                ; one simply does nothing.
                 m.Add(label, (*) => "", opts)
-                m.Disable(label)
+                headings.Push(pos)
 
             case "text":
                 m.Add(label, HandlerText(GetKey(item, "value", "")), opts)
@@ -91,6 +101,48 @@ PopulateMenu(m, items) {
                 m.Add(label " (?)", (*) => "", opts)
                 m.Disable(label " (?)")
         }
+        pos++
+    }
+
+    for p in headings
+        MenuItemBold(m, p)
+}
+
+; ---------------------------------------------------------------------------
+; Draw a menu item in bold.
+;
+; Windows renders the menu's "default" item in bold. It documents only one
+; default per menu, and SetMenuItemInfo does return ERROR_INVALID_PARAMETER
+; for the second and subsequent items — but the MFS_DEFAULT state bit is
+; applied to each one regardless, which is what the renderer reads. Failures
+; are ignored on purpose: the worst case is a heading drawn in normal text.
+; ---------------------------------------------------------------------------
+MenuItemBold(menuObj, position) {
+    static MIIM_STATE  := 0x0001
+    static MFS_DEFAULT := 0x1000
+    static SIZE        := (A_PtrSize = 8) ? 80 : 48
+    static OFF_STATE   := 12
+
+    try {
+        hMenu := menuObj.Handle
+
+        mii := Buffer(SIZE, 0)
+        NumPut("UInt", SIZE, mii, 0)
+        NumPut("UInt", MIIM_STATE, mii, 4)
+        if !DllCall("GetMenuItemInfoW", "Ptr", hMenu, "UInt", position,
+                    "Int", 1, "Ptr", mii, "Int")
+            return false
+
+        state := NumGet(mii, OFF_STATE, "UInt")
+
+        NumPut("UInt", SIZE, mii, 0)
+        NumPut("UInt", MIIM_STATE, mii, 4)
+        NumPut("UInt", state | MFS_DEFAULT, mii, OFF_STATE)
+        DllCall("SetMenuItemInfoW", "Ptr", hMenu, "UInt", position,
+                "Int", 1, "Ptr", mii, "Int")
+        return true
+    } catch {
+        return false
     }
 }
 

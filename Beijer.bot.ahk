@@ -21,6 +21,7 @@ if !A_IsAdmin {
 #Include "lib\data.ahk"
 #Include "lib\menu_builder.ahk"
 #Include "lib\ai.ahk"
+#Include "lib\clipboard.ahk"
 #Include "lib\editor.ahk"
 Persistent
 TraySetIcon(A_ScriptDir "\B.ico")
@@ -82,6 +83,9 @@ global BeijerBotData := LoadMenuData()
 global MenuPopup     := BuildMenuFromData(BeijerBotData["menu"])
 RegisterHotstrings(BeijerBotData["hotstrings"])
 
+; Start watching the clipboard (see lib\clipboard.ahk).
+CB_Init()
+
 ; Rebuild the menu after the data file changes, without restarting.
 ReloadBeijerBotMenu() {
     global BeijerBotData, MenuPopup
@@ -92,6 +96,8 @@ ReloadBeijerBotMenu() {
 ; Functions implemented in this script that data entries may call by name.
 RegisterBuiltInActions() {
     RegisterAction("OpenLibraryEditor", OpenLibraryEditor)
+    RegisterAction("OpenClipboardManager", CB_Show)
+    RegisterAction("ToggleClipboardCapture", CB_ToggleCapture)
     RegisterAction("BoldHtml", BoldHtml)
     RegisterAction("ClipboardPasteLowercase", ClipboardPasteLowercase)
     RegisterAction("ClipboardPasteSentenceCase", ClipboardPasteSentenceCase)
@@ -857,6 +863,8 @@ MenuPopup.Show()
 ;^+n::MultiSearchNlEn()          ; Ctrl-Shift-Z hotkey
 ; ^+e::MultiSearchEnNl()          ; Ctrl-Shift-e hotkey
 
+
+^!c::CB_Show()                   ; Ctrl+Alt+C opens the clipboard history
 
 ; Hotkeys that used to sit inside the menu block
 ^+7::Run("C:\Users\mbeijer\AppData\Roaming\talon")   ; Talon config folder

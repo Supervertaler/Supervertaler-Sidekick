@@ -23,7 +23,7 @@ no runtime, no install step.
 | 📋 **Snippet library** | Boilerplate, standard replies, special characters, regex patterns, dictionary citations — inserted at the cursor. |
 | 🔤 **Text conversions** | Upper / lower / title / sentence case, curly quotes, brackets, HTML bold, soft-hyphen removal, straight-to-curly quote conversion. |
 | 🔖 **Bookmarks** | Online and local. Forums, docs, reference sites, folders you keep reopening. |
-| 📎 **Clipboard manager** | *Not yet implemented — see the roadmap.* |
+| 📎 **Clipboard manager** | Searchable history that survives restarts, pasted straight back into the window you came from. Entries you've already used are ticked and greyed, so you can work down a list of terms without losing your place. `Ctrl+Alt+C` |
 
 Everything is reachable in two keystrokes: `` ` `` then an accelerator letter.
 
@@ -126,6 +126,7 @@ Beijer.bot.ahk        hotkeys, text conversions, local searches
 lib/
   menu_builder.ahk    builds the menu from data
   ai.ahk              provider-agnostic AI requests
+  clipboard.ahk       clipboard history
   editor.ahk          the Library Editor
   data.ahk            reads and writes the JSON
   jxon.ahk            JSON parser (third-party)
@@ -138,9 +139,9 @@ settings.ini          API keys — gitignored
 
 ## Roadmap
 
-- **Clipboard manager** — persistent text and image history, searchable, with
-  the privacy controls the job needs: capture toggle, auto-expiry, and an
-  exclusion list for password managers.
+- **Image clips** — the clipboard history is text-only. AutoHotkey has no
+  practical way to thumbnail and persist bitmaps; the on-disk format leaves
+  room for them.
 - **Streaming AI replies** — show the answer as it arrives rather than after
   the full response lands.
 
