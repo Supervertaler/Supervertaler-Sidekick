@@ -248,18 +248,80 @@ CB_BuildGui() {
 
     CB_StatusText := CB_Gui.Add("Text", "xm y+8 w690", "")
 
-    ; Enter pastes, Delete removes — while the list has focus.
+    CB_Keys()
+}
+
+; ---------------------------------------------------------------------------
+; Keyboard navigation.
+;
+; Focus stays in the search box the whole time: you type to narrow the list
+; and arrow through it without ever reaching for the mouse or tabbing away.
+; The arrows are therefore intercepted at window level rather than left to
+; the ListView, which would only work while the list itself had focus.
+; ---------------------------------------------------------------------------
+CB_Keys() {
+    global CB_Gui
     HotIfWinActive("ahk_id " CB_Gui.Hwnd)
-    Hotkey("~Enter", (*) => CB_EnterPressed(), "On")
+
+    Hotkey("Down",        (*) => CB_MoveSelection(1),  "On")
+    Hotkey("Up",          (*) => CB_MoveSelection(-1), "On")
+    Hotkey("PgDn",        (*) => CB_MoveSelection(10), "On")
+    Hotkey("PgUp",        (*) => CB_MoveSelection(-10), "On")
+    Hotkey("Home",        (*) => CB_MoveTo(1), "On")
+    Hotkey("End",         (*) => CB_MoveTo(-1), "On")
+    Hotkey("Enter",       (*) => CB_PasteSelected(), "On")
+    Hotkey("NumpadEnter", (*) => CB_PasteSelected(), "On")
+    Hotkey("^Enter",      (*) => CB_CopySelected(), "On")
+    Hotkey("^Delete",     (*) => CB_DeleteSelected(), "On")
+
+    ; Alt+1..9 pastes the nth visible entry outright.
+    Loop 9 {
+        n := A_Index
+        Hotkey("!" n, CB_MakeQuickPaste(n), "On")
+    }
+
     HotIfWinActive()
 }
 
-CB_EnterPressed() {
-    global CB_Gui, CB_List
-    if (CB_Gui = "")
+CB_MakeQuickPaste(n) {
+    return (*) => CB_QuickPaste(n)
+}
+
+CB_QuickPaste(n) {
+    global CB_List, CB_Shown
+    if (n < 1 || n > CB_Shown.Length)
         return
-    if (CB_List.GetNext(0) > 0)
-        CB_PasteSelected()
+    CB_List.Modify(0, "-Select")
+    CB_List.Modify(n, "Select Focus")
+    CB_PasteSelected()
+}
+
+CB_MoveSelection(delta) {
+    global CB_List, CB_Shown
+    if (CB_Shown.Length = 0)
+        return
+
+    row := CB_List.GetNext(0)
+    if (row = 0)
+        row := (delta > 0) ? 0 : CB_Shown.Length + 1
+
+    target := row + delta
+    if (target < 1)
+        target := 1
+    if (target > CB_Shown.Length)
+        target := CB_Shown.Length
+
+    CB_List.Modify(0, "-Select")
+    CB_List.Modify(target, "Select Focus Vis")
+}
+
+CB_MoveTo(where) {
+    global CB_List, CB_Shown
+    if (CB_Shown.Length = 0)
+        return
+    target := (where = 1) ? 1 : CB_Shown.Length
+    CB_List.Modify(0, "-Select")
+    CB_List.Modify(target, "Select Focus Vis")
 }
 
 CB_Refresh() {
@@ -291,10 +353,20 @@ CB_Refresh() {
     CB_List.ModifyCol(3, 530)
     CB_List.Opt("+Redraw")
 
+    ; Preselect the top entry so Enter works the moment the window opens,
+    ; without the user having to arrow into the list first.
+    ; "Focus" here sets the focused *item* within the list, not keyboard focus,
+    ; so the caret stays in the search box and typing keeps narrowing.
+    if (CB_Shown.Length > 0)
+        CB_List.Modify(1, "Select Focus")
+
     state := CB_Enabled ? "" : "   —   capture is PAUSED"
     try CB_StatusText.Value := CB_Shown.Length " of " CB_Items.Length
                              . " entries   ·   " pastedCount " already pasted"
                              . state
+                             . "        ↑↓ choose   ·   Enter paste   ·   "
+                             . "Alt+1-9 paste nth   ·   Ctrl+Enter copy   ·   "
+                             . "Ctrl+Del remove"
 }
 
 ; Map a visible row back to its entry.
@@ -520,6 +592,78 @@ CB_Hide(*) {
     global CB_Gui
     try CB_Gui.Hide()
     return true
+}
+
+; ---------------------------------------------------------------------------
+; Recent clips as a live submenu on the main popup.
+;
+; The main menu is built once at startup, but the history changes constantly,
+; so this submenu is emptied and refilled each time the menu is opened.
+; ---------------------------------------------------------------------------
+global CB_SubMenu := ""
+
+CB_AttachSubMenu(menuObj) {
+    global CB_SubMenu
+    CB_SubMenu := menuObj
+}
+
+CB_RefreshSubMenu() {
+    global CB_SubMenu, CB_Items
+
+    if (CB_SubMenu = "")
+        return
+
+    try CB_SubMenu.Delete()          ; empty it; a fresh list follows
+
+    shown := CB_Setting("MenuEntries", "12") + 0
+    if (shown < 1)
+        shown := 12
+
+    if (CB_Items.Length = 0) {
+        CB_SubMenu.Add("(clipboard history is empty)", (*) => "")
+        CB_SubMenu.Disable("(clipboard history is empty)")
+        return
+    }
+
+    used := Map()
+    count := 0
+    for item in CB_Items {
+        if (count >= shown)
+            break
+        count++
+
+        label := CB_Preview(GetKey(item, "text", ""))
+        if (StrLen(label) > 70)
+            label := SubStr(label, 1, 70) "..."
+        if (GetKey(item, "pasted", false))
+            label := "✓ " label
+        ; Menu items are identified by their text, so near-identical clips
+        ; need distinguishing without changing what is displayed.
+        label := UniqueMenuLabel(used, label)
+
+        CB_SubMenu.Add(label, CB_MakeMenuPaste(item))
+    }
+
+    CB_SubMenu.Add()
+    CB_SubMenu.Add("Open clipboard history…  (Ctrl+Alt+C)", (*) => CB_Show())
+}
+
+CB_MakeMenuPaste(item) {
+    return (*) => CB_PasteItemDirect(item)
+}
+
+; Paste straight from the menu. The menu closes on its own, so unlike the
+; window there is no source handle to restore — focus returns to whatever was
+; underneath.
+CB_PasteItemDirect(item) {
+    text := GetKey(item, "text", "")
+    if (text = "")
+        return
+    item["pasted"] := true
+    CB_Save()
+    CB_SetClipboard(text)
+    Sleep(120)
+    Send("^v")
 }
 
 CB_OnSize(thisGui, minMax, width, height) {

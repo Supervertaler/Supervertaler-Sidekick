@@ -12,6 +12,7 @@
 ;   run       value      launch a local file or folder
 ;   search    url        copy the selection and open url with {q} replaced
 ;   ai        prompt     run an AI prompt over the selection (see lib/ai.ahk)
+;   clipboard            live submenu of recent clips (see lib/clipboard.ahk)
 ;   action    func, arg  call a built-in registered via RegisterAction()
 ;
 ; Any entry may set "barbreak": true to start a new menu column.
@@ -63,6 +64,13 @@ PopulateMenu(m, items) {
                 sub := Menu()
                 PopulateMenu(sub, GetKey(item, "items", []))
                 m.Add(label, sub, opts)
+
+            case "clipboard":
+                ; A live submenu: its contents are rebuilt from the clipboard
+                ; history every time the main menu is opened.
+                sub := Menu()
+                m.Add(label, sub, opts)
+                CB_AttachSubMenu(sub)
 
             case "heading":
                 ; Deliberately NOT disabled. A disabled item is drawn greyed

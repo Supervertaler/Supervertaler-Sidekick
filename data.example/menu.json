@@ -7,6 +7,10 @@
       "func": "OpenClipboardManager"
     },
     {
+      "kind": "clipboard",
+      "label": "• Recent clips:"
+    },
+    {
       "kind": "action",
       "label": "Beijer.bot",
       "func": "EditBeijerBot",

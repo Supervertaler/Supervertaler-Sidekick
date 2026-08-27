@@ -86,6 +86,16 @@ RegisterHotstrings(BeijerBotData["hotstrings"])
 ; Start watching the clipboard (see lib\clipboard.ahk).
 CB_Init()
 
+; Rebuild anything that changes between openings, then show the menu.
+ShowMainMenu(x := unset, y := unset) {
+    global MenuPopup
+    CB_RefreshSubMenu()
+    if (IsSet(x) && IsSet(y))
+        MenuPopup.Show(x, y)
+    else
+        MenuPopup.Show()
+}
+
 ; Rebuild the menu after the data file changes, without restarting.
 ReloadBeijerBotMenu() {
     global BeijerBotData, MenuPopup
@@ -849,11 +859,11 @@ Hotkeys /  Keyboard shortcuts
 ^`::
 {
 ;Reload
-MenuPopup.Show()
+ShowMainMenu()
 }
 
 
-`::MenuPopup.Show(132, 164)     ; Backtick (`) opens Beijer.bot
+`::ShowMainMenu(132, 164)       ; Backtick (`) opens Beijer.bot
 ;; `::MenuPopup.Show()
 
 

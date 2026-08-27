@@ -2,19 +2,29 @@
 ; ===========================================================================
 ; lib/editor.ahk — the Library Editor.
 ;
-; Add, edit, delete and reorder menu entries without touching the script.
+; Add, edit, delete and reorder any menu entry without touching the script.
 ; Changes are written to data\menu.json and the live menu is rebuilt on save.
+;
+; The tree on the left mirrors the menu's own structure: the headings that
+; divide the menu into sections become the tree's sections, and submenus hang
+; underneath the section they appear in. Everything the menu can show is
+; therefore reachable here — snippets, searches, AI prompts, bookmarks and
+; conversions alike.
+;
+; A "section" is a slice of the top-level array rather than an array of its
+; own, so edits carry a start/end range and operate on absolute indices in
+; the parent array.
 ; ===========================================================================
 
 global LE_Gui     := ""
 global LE_Tree    := ""
 global LE_List    := ""
-global LE_Nodes   := Map()   ; TreeView item id  ->  the array it represents
-global LE_Current := ""      ; array currently shown in the ListView
+global LE_Nodes   := Map()   ; TreeView item id -> scope Map
+global LE_Scope   := ""      ; Map("array", arr, "start", n, "end", n)
 global LE_Dirty   := false
 
-LE_KINDS := ["text", "keys", "url", "run", "search",
-             "action", "heading", "submenu", "separator"]
+LE_KINDS := ["text", "keys", "url", "run", "search", "ai",
+             "action", "heading", "submenu", "separator", "clipboard"]
 
 ; What the Value field means for each kind — shown as a hint so the field is
 ; never ambiguous.
@@ -24,11 +34,29 @@ LE_HINTS := Map(
     "url",       "A web address to open.",
     "run",       "A file or folder to launch.",
     "search",    "A search URL. Use {q} where the selected text goes.",
-    "action",    "The name of a built-in function (see the list below).",
-    "heading",   "Not used — headings are just labels.",
+    "ai",        "The prompt. Your selected text is appended to it.",
+    "action",    "The name of a built-in function.",
+    "heading",   "Not used — a heading is just a label.",
     "submenu",   "Not used — a submenu holds other entries.",
-    "separator", "Not used — a separator is just a dividing line."
+    "separator", "Not used — a separator is just a dividing line.",
+    "clipboard", "Not used — fills itself with your recent clips."
 )
+
+; Which data field holds the payload, per kind.
+LE_ValueField(kind) {
+    switch kind {
+        case "search":    return "url"
+        case "ai":        return "prompt"
+        case "action":    return "func"
+        case "url", "run": return "value"
+        default:          return "value"
+    }
+}
+
+; Fields carried through an edit untouched, so per-entry AI overrides and the
+; like are not silently dropped when someone renames an entry.
+LE_PRESERVE := ["system", "model", "provider", "effort", "maxtokens",
+                "selection", "browser", "arg"]
 
 OpenLibraryEditor(*) {
     global LE_Gui
@@ -37,15 +65,15 @@ OpenLibraryEditor(*) {
         return
     }
 
-    LE_Gui := Gui("+Resize +MinSize760x420", "Beijer.bot — Library Editor")
+    LE_Gui := Gui("+Resize +MinSize820x460", "Beijer.bot — Library Editor")
     LE_Gui.SetFont("s9", "Segoe UI")
     LE_Gui.OnEvent("Close", LE_OnClose)
     LE_Gui.OnEvent("Size", LE_OnSize)
 
-    LE_Gui.Add("Text", "xm ym w220", "Section:")
+    LE_Gui.Add("Text", "xm ym w260", "Section:")
     LE_Gui.Add("Text", "x+10 yp w560", "Entries:")
 
-    global LE_Tree := LE_Gui.Add("TreeView", "xm y+4 w220 h420")
+    global LE_Tree := LE_Gui.Add("TreeView", "xm y+4 w260 h420")
     LE_Tree.OnEvent("ItemSelect", LE_OnTreeSelect)
 
     global LE_List := LE_Gui.Add("ListView", "x+10 yp w560 h420",
@@ -54,68 +82,119 @@ OpenLibraryEditor(*) {
 
     LE_Gui.Add("Button", "xm y+8 w104", "New entry")
         .OnEvent("Click", (*) => LE_NewEntry())
-    LE_Gui.Add("Button", "x+6 w104", "Edit").OnEvent("Click", (*) => LE_EditSelected())
-    LE_Gui.Add("Button", "x+6 w104", "Delete").OnEvent("Click", (*) => LE_DeleteSelected())
+    LE_Gui.Add("Button", "x+6 w80", "Edit").OnEvent("Click", (*) => LE_EditSelected())
+    LE_Gui.Add("Button", "x+6 w80", "Delete").OnEvent("Click", (*) => LE_DeleteSelected())
     LE_Gui.Add("Button", "x+6 w70", "Move up").OnEvent("Click", (*) => LE_Move(-1))
-    LE_Gui.Add("Button", "x+6 w70", "Move down").OnEvent("Click", (*) => LE_Move(1))
+    LE_Gui.Add("Button", "x+6 w80", "Move down").OnEvent("Click", (*) => LE_Move(1))
 
-    LE_Gui.Add("Button", "x+40 w110 Default", "Save && rebuild")
+    LE_Gui.Add("Button", "x+30 w120 Default", "Save && rebuild")
         .OnEvent("Click", (*) => LE_Save())
     LE_Gui.Add("Button", "x+6 w80", "Close").OnEvent("Click", (*) => LE_OnClose())
 
     LE_BuildTree()
-    LE_Gui.Show("w800 h500")
+    LE_Gui.Show("w860 h520")
 }
 
 ; ---------------------------------------------------------------------------
+LE_Scope_(arr, start, end) {
+    s := Map()
+    s["array"] := arr
+    s["start"] := start
+    s["end"]   := end
+    return s
+}
+
 LE_BuildTree() {
-    global LE_Tree, LE_Nodes, LE_Current, BeijerBotData
+    global LE_Tree, LE_Nodes, LE_Scope, BeijerBotData
 
     LE_Tree.Delete()
     LE_Nodes := Map()
 
-    root := LE_Tree.Add("Top level", , "Expand Bold")
-    LE_Nodes[root] := BeijerBotData["menu"]
+    top := BeijerBotData["menu"]
 
-    for item in BeijerBotData["menu"] {
-        if (GetKey(item, "kind", "") != "submenu")
-            continue
-        label := GetKey(item, "label", "(unnamed)")
-        if !item.Has("items")
-            item["items"] := []
-        id := LE_Tree.Add(label, root)
-        LE_Nodes[id] := item["items"]
+    root := LE_Tree.Add("Everything", , "Expand Bold")
+    LE_Nodes[root] := LE_Scope_(top, 1, top.Length)
+
+    ; Walk the top level, opening a new section at each heading. Entries that
+    ; appear before the first heading belong to an implicit opening section.
+    sectionId := 0
+    sectionStart := 1
+
+    CloseSection(endIdx) {
+        if (sectionId && endIdx >= sectionStart)
+            LE_Nodes[sectionId] := LE_Scope_(top, sectionStart, endIdx)
     }
 
-    LE_Current := BeijerBotData["menu"]
+    for i, item in top {
+        kind := GetKey(item, "kind", "")
+
+        if (kind = "heading") {
+            CloseSection(i - 1)
+            label := Trim(GetKey(item, "label", "(section)"))
+            sectionId := LE_Tree.Add(label, root)
+            sectionStart := i
+            continue
+        }
+
+        if (kind = "submenu") {
+            if !item.Has("items")
+                item["items"] := []
+            sub := item["items"]
+            parent := sectionId ? sectionId : root
+            id := LE_Tree.Add(GetKey(item, "label", "(unnamed)"), parent)
+            LE_Nodes[id] := LE_Scope_(sub, 1, sub.Length)
+        }
+    }
+    CloseSection(top.Length)
+
+    LE_Scope := LE_Nodes[root]
     LE_Tree.Modify(root, "Select")
     LE_RefreshList()
 }
 
 LE_OnTreeSelect(tree, itemId) {
-    global LE_Nodes, LE_Current
+    global LE_Nodes, LE_Scope
     if LE_Nodes.Has(itemId) {
-        LE_Current := LE_Nodes[itemId]
+        LE_Scope := LE_Nodes[itemId]
         LE_RefreshList()
     }
 }
 
+LE_ScopeArray() {
+    global LE_Scope
+    return (LE_Scope is Map) ? LE_Scope["array"] : ""
+}
+
+LE_Count() {
+    global LE_Scope
+    if !(LE_Scope is Map)
+        return 0
+    n := LE_Scope["end"] - LE_Scope["start"] + 1
+    return (n > 0) ? n : 0
+}
+
+; Row in the list -> index in the underlying array.
+LE_AbsIndex(row) {
+    global LE_Scope
+    return LE_Scope["start"] + row - 1
+}
+
 LE_RefreshList() {
-    global LE_List, LE_Current
+    global LE_List, LE_Scope
 
     LE_List.Opt("-Redraw")
     LE_List.Delete()
 
-    if (LE_Current is Array) {
-        for item in LE_Current {
+    arr := LE_ScopeArray()
+    if (arr is Array) {
+        Loop LE_Count() {
+            item := arr[LE_AbsIndex(A_Index)]
             kind  := GetKey(item, "kind", "")
             label := GetKey(item, "label", "")
 
-            value := GetKey(item, "value", "")
+            value := GetKey(item, LE_ValueField(kind), "")
             if (value = "")
-                value := GetKey(item, "url", "")
-            if (value = "")
-                value := GetKey(item, "func", "")
+                value := GetKey(item, "value", "")
 
             value := StrReplace(StrReplace(value, "`r", " "), "`n", " ")
             if (StrLen(value) > 90)
@@ -146,53 +225,88 @@ LE_SelectedRow() {
 }
 
 LE_NewEntry() {
-    global LE_Current, LE_Dirty
+    global LE_Scope, LE_Dirty
+    arr := LE_ScopeArray()
+    if !(arr is Array)
+        return
+
     item := LE_EntryDialog("")
     if (item = "")
         return
-    LE_Current.Push(item)
+
+    ; New entries land at the end of the section, not the end of the menu.
+    arr.InsertAt(LE_Scope["end"] + 1, item)
+    LE_Scope["end"] := LE_Scope["end"] + 1
     LE_Dirty := true
     LE_RefreshList()
 }
 
 LE_EditSelected() {
-    global LE_Current, LE_Dirty
+    global LE_Dirty
     row := LE_SelectedRow()
     if !row
         return
-    updated := LE_EntryDialog(LE_Current[row])
+    arr := LE_ScopeArray()
+    idx := LE_AbsIndex(row)
+
+    updated := LE_EntryDialog(arr[idx])
     if (updated = "")
         return
-    LE_Current[row] := updated
+    arr[idx] := updated
     LE_Dirty := true
     LE_RefreshList()
+    LE_List.Modify(row, "Select Focus")
 }
 
 LE_DeleteSelected() {
-    global LE_Current, LE_Dirty
+    global LE_Scope, LE_Dirty
     row := LE_SelectedRow()
     if !row
         return
-    label := GetKey(LE_Current[row], "label", "(separator)")
-    if (MsgBox("Delete this entry?`n`n" label,
+    arr := LE_ScopeArray()
+    idx := LE_AbsIndex(row)
+
+    item := arr[idx]
+    label := GetKey(item, "label", "(separator)")
+
+    extra := ""
+    if (GetKey(item, "kind", "") = "submenu")
+        extra := "`n`nThis will delete the submenu and everything in it ("
+               . GetKey(item, "items", []).Length " entries)."
+
+    if (MsgBox("Delete this entry?`n`n" label extra,
                "Library Editor", "YesNo Icon?") != "Yes")
         return
-    LE_Current.RemoveAt(row)
+
+    arr.RemoveAt(idx)
+    LE_Scope["end"] := LE_Scope["end"] - 1
     LE_Dirty := true
-    LE_RefreshList()
+
+    ; Deleting a submenu or heading changes the tree, not just the list.
+    if (GetKey(item, "kind", "") = "submenu"
+        || GetKey(item, "kind", "") = "heading")
+        LE_BuildTree()
+    else
+        LE_RefreshList()
 }
 
 LE_Move(delta) {
-    global LE_Current, LE_List, LE_Dirty
+    global LE_Scope, LE_List, LE_Dirty
     row := LE_SelectedRow()
     if !row
         return
+
     target := row + delta
-    if (target < 1 || target > LE_Current.Length)
+    if (target < 1 || target > LE_Count())
         return
-    tmp := LE_Current[row]
-    LE_Current[row] := LE_Current[target]
-    LE_Current[target] := tmp
+
+    arr := LE_ScopeArray()
+    a := LE_AbsIndex(row)
+    b := LE_AbsIndex(target)
+    tmp := arr[a]
+    arr[a] := arr[b]
+    arr[b] := tmp
+
     LE_Dirty := true
     LE_RefreshList()
     LE_List.Modify(target, "Select Focus")
@@ -202,7 +316,7 @@ LE_Move(delta) {
 ; Add / edit dialog. Returns a populated Map, or "" if cancelled.
 ; ---------------------------------------------------------------------------
 LE_EntryDialog(existing) {
-    global LE_Gui, LE_KINDS, LE_HINTS
+    global LE_Gui, LE_KINDS, LE_HINTS, LE_PRESERVE
 
     result := Map("ok", false, "item", "")
 
@@ -213,45 +327,59 @@ LE_EntryDialog(existing) {
     g.SetFont("s9", "Segoe UI")
 
     g.Add("Text", "xm ym", "Label (what appears on the menu):")
-    eLabel := g.Add("Edit", "xm y+2 w520",
+    eLabel := g.Add("Edit", "xm y+2 w540",
                     isEdit ? GetKey(existing, "label", "") : "")
 
     g.Add("Text", "xm y+8", "Type:")
     ddl := g.Add("DropDownList", "xm y+2 w160", LE_KINDS)
 
     curKind := isEdit ? GetKey(existing, "kind", "text") : "text"
+    chosen := 0
     for i, k in LE_KINDS {
         if (k = curKind) {
-            ddl.Choose(i)
+            chosen := i
             break
         }
     }
+    if (chosen = 0) {
+        ; An unrecognised kind would otherwise silently become the first entry
+        ; in the list and overwrite the payload on save.
+        LE_KINDS.Push(curKind)
+        ddl.Add([curKind])
+        chosen := LE_KINDS.Length
+    }
+    ddl.Choose(chosen)
 
-    hint := g.Add("Text", "x+12 yp+3 w340 cGray",
+    hint := g.Add("Text", "x+12 yp+3 w360 cGray",
                   LE_HINTS.Has(curKind) ? LE_HINTS[curKind] : "")
 
     g.Add("Text", "xm y+10", "Value:")
 
-    curValue := ""
-    if isEdit {
+    curValue := isEdit ? GetKey(existing, LE_ValueField(curKind), "") : ""
+    if (isEdit && curValue = "")
         curValue := GetKey(existing, "value", "")
-        if (curValue = "")
-            curValue := GetKey(existing, "url", "")
-        if (curValue = "")
-            curValue := GetKey(existing, "func", "")
-    }
-    eValue := g.Add("Edit", "xm y+2 w520 r7 Multi", curValue)
+    eValue := g.Add("Edit", "xm y+2 w540 r8 Multi", curValue)
 
     chkBreak := g.Add("CheckBox", "xm y+8", "Start a new column here")
     if (isEdit && GetKey(existing, "barbreak", false))
         chkBreak.Value := 1
+
+    ; Show which extras are being carried through, so it is clear they survive.
+    carried := ""
+    if isEdit {
+        for f in LE_PRESERVE {
+            if (GetKey(existing, f, "") != "")
+                carried .= (carried = "" ? "" : ", ") f
+        }
+    }
+    if (carried != "")
+        g.Add("Text", "xm y+6 w540 cGray", "Kept as-is: " carried)
 
     ddl.OnEvent("Change", (*) => hint.Value :=
         LE_HINTS.Has(ddl.Text) ? LE_HINTS[ddl.Text] : "")
 
     btnSave := g.Add("Button", "xm y+12 w100 Default", "Save")
     g.Add("Button", "x+8 w100", "Cancel").OnEvent("Click", (*) => g.Destroy())
-
     btnSave.OnEvent("Click", DoSave)
 
     DoSave(*) {
@@ -259,19 +387,23 @@ LE_EntryDialog(existing) {
         label := Trim(eLabel.Value)
         value := eValue.Value
 
-        if (kind != "separator" && label = "") {
+        needsLabel := (kind != "separator")
+        needsValue := (kind = "text" || kind = "keys" || kind = "url"
+                    || kind = "run" || kind = "action" || kind = "search"
+                    || kind = "ai")
+
+        if (needsLabel && label = "") {
             MsgBox("Please give the entry a label.", "Library Editor", "Icon!")
             return
         }
         if (kind = "search" && !InStr(value, "{q}")) {
-            MsgBox("A search URL needs {q} to mark where the selected "
-                   "text goes.`n`nFor example:`n"
+            MsgBox("A search URL needs {q} to mark where the selected text "
+                   "goes.`n`nFor example:`n"
                    "https://en.wiktionary.org/wiki/{q}",
                    "Library Editor", "Icon!")
             return
         }
-        if ((kind = "text" || kind = "keys" || kind = "url" || kind = "run"
-             || kind = "action") && value = "") {
+        if (needsValue && Trim(value) = "") {
             MsgBox("Please fill in the Value field.", "Library Editor", "Icon!")
             return
         }
@@ -281,22 +413,19 @@ LE_EntryDialog(existing) {
         if (kind != "separator")
             item["label"] := label
 
-        switch kind {
-            case "search":
-                item["url"] := value
-                ; Keep whichever browser the entry already used.
-                if (isEdit && GetKey(existing, "browser", "") != "")
-                    item["browser"] := existing["browser"]
-            case "action":
-                item["func"] := value
-                if (isEdit && GetKey(existing, "arg", "") != "")
-                    item["arg"] := existing["arg"]
-            case "submenu":
-                item["items"] := isEdit ? GetKey(existing, "items", []) : []
-            case "heading", "separator":
-                ; label only
-            default:
-                item["value"] := value
+        if (kind = "submenu")
+            item["items"] := isEdit ? GetKey(existing, "items", []) : []
+        else if (kind != "heading" && kind != "separator"
+                 && kind != "clipboard")
+            item[LE_ValueField(kind)] := value
+
+        ; Carry forward anything the dialog does not expose.
+        if isEdit {
+            for f in LE_PRESERVE {
+                v := GetKey(existing, f, "")
+                if (v != "")
+                    item[f] := v
+            }
         }
 
         if (chkBreak.Value)
@@ -333,9 +462,12 @@ LE_OnClose(*) {
             return true          ; keep the window open
         if (answer = "Yes")
             LE_Save()
-        else
+        else {
             BeijerBotData := LoadMenuData()   ; discard edits
+            ReloadBeijerBotMenu()
+        }
     }
+    LE_Dirty := false
     LE_Gui.Destroy()
     LE_Gui := ""
     return true
@@ -345,11 +477,14 @@ LE_OnSize(thisGui, minMax, width, height) {
     global LE_Tree, LE_List
     if (minMax = -1)
         return
-    treeW := 220
+    treeW := 260
     listW := width - treeW - 40
     h     := height - 90
     if (h < 120)
         h := 120
+    if (listW < 200)
+        listW := 200
     LE_Tree.Move(, , treeW, h)
     LE_List.Move(treeW + 30, , listW, h)
+    LE_List.ModifyCol(3, listW - 340)
 }
