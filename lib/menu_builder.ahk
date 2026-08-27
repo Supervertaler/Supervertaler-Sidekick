@@ -15,7 +15,10 @@
 ;   clipboard            live submenu of recent clips (see lib/clipboard.ahk)
 ;   action    func, arg  call a built-in registered via RegisterAction()
 ;
-; Any entry may set "barbreak": true to start a new menu column.
+; Any entry may also set:
+;   "barbreak": true   start a new menu column here
+;   "bold": true       draw it bold (headings get this automatically)
+;   "icon": "B.ico"    show an icon, path relative to the script folder
 ;
 ; Self-contained: everything this module needs is defined here, so it does not
 ; depend on the ordering or brace structure of the main script.
@@ -79,6 +82,7 @@ PopulateMenu(m, items) {
                 ; one simply does nothing.
                 m.Add(label, (*) => "", opts)
                 headings.Push(pos)
+                MenuApplyIcon(m, item, label)
 
             case "text":
                 m.Add(label, HandlerText(GetKey(item, "value", "")), opts)
@@ -109,11 +113,29 @@ PopulateMenu(m, items) {
                 m.Add(label " (?)", (*) => "", opts)
                 m.Disable(label " (?)")
         }
+
+        ; Any entry can ask to be bold or carry an icon, not just headings.
+        if (kind != "heading") {
+            MenuApplyIcon(m, item, label)
+            if GetKey(item, "bold", false)
+                headings.Push(pos)
+        }
+
         pos++
     }
 
     for p in headings
         MenuItemBold(m, p)
+}
+
+MenuApplyIcon(m, item, label) {
+    icon := GetKey(item, "icon", "")
+    if (icon = "")
+        return
+    path := InStr(icon, ":") ? icon : A_ScriptDir "\" icon
+    if !FileExist(path)
+        return
+    try m.SetIcon(label, path, GetKey(item, "iconindex", 1))
 }
 
 ; ---------------------------------------------------------------------------

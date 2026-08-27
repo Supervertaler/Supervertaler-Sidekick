@@ -112,6 +112,7 @@ RegisterBuiltInActions() {
     RegisterAction("OpenLibraryEditor", OpenLibraryEditor)
     RegisterAction("OpenHotkeyEditor", OpenHotkeyEditor)
     RegisterAction("OpenClipboardManager", CB_Show)
+    RegisterAction("ReloadBeijerBot", (*) => Reload())
     RegisterAction("ToggleClipboardCapture", CB_ToggleCapture)
     RegisterAction("BoldHtml", BoldHtml)
     RegisterAction("ClipboardPasteLowercase", ClipboardPasteLowercase)

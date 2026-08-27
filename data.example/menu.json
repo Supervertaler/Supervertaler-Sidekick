@@ -2,29 +2,55 @@
   "version": 1,
   "menu": [
     {
+      "kind": "heading",
+      "label": "Beijer.bot",
+      "icon": "B.ico",
+      "bold": true
+    },
+    {
+      "kind": "separator"
+    },
+    {
       "kind": "action",
       "label": "Clipboard history…  (Ctrl+Alt+C)",
       "func": "OpenClipboardManager"
     },
     {
-      "kind": "clipboard",
-      "label": "• Recent clips:"
-    },
-    {
-      "kind": "action",
-      "label": "Beijer.bot",
-      "func": "EditBeijerBot",
-      "barbreak": true
-    },
-    {
-      "kind": "action",
-      "label": "Edit library…",
-      "func": "OpenLibraryEditor"
-    },
-    {
-      "kind": "action",
-      "label": "Keyboard shortcuts…",
-      "func": "OpenHotkeyEditor"
+      "kind": "submenu",
+      "label": "Settings",
+      "items": [
+        {
+          "kind": "action",
+          "label": "Edit library…",
+          "func": "OpenLibraryEditor"
+        },
+        {
+          "kind": "action",
+          "label": "Keyboard shortcuts…",
+          "func": "OpenHotkeyEditor"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "action",
+          "label": "Pause / resume clipboard capture",
+          "func": "ToggleClipboardCapture"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "action",
+          "label": "Edit Beijer.bot.ahk",
+          "func": "EditBeijerBot"
+        },
+        {
+          "kind": "action",
+          "label": "Reload Beijer.bot",
+          "func": "ReloadBeijerBot"
+        }
+      ]
     },
     {
       "kind": "separator"
