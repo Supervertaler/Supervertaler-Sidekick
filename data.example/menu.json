@@ -22,6 +22,11 @@
       "func": "OpenLibraryEditor"
     },
     {
+      "kind": "action",
+      "label": "Keyboard shortcuts…",
+      "func": "OpenHotkeyEditor"
+    },
+    {
       "kind": "separator"
     },
     {

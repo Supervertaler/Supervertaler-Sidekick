@@ -110,6 +110,7 @@ ReloadBeijerBotMenu() {
 ; Functions implemented in this script that data entries may call by name.
 RegisterBuiltInActions() {
     RegisterAction("OpenLibraryEditor", OpenLibraryEditor)
+    RegisterAction("OpenHotkeyEditor", OpenHotkeyEditor)
     RegisterAction("OpenClipboardManager", CB_Show)
     RegisterAction("ToggleClipboardCapture", CB_ToggleCapture)
     RegisterAction("BoldHtml", BoldHtml)
