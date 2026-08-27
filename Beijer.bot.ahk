@@ -22,6 +22,7 @@ if !A_IsAdmin {
 #Include "lib\menu_builder.ahk"
 #Include "lib\ai.ahk"
 #Include "lib\clipboard.ahk"
+#Include "lib\hotkeys.ahk"
 #Include "lib\editor.ahk"
 Persistent
 TraySetIcon(A_ScriptDir "\B.ico")
@@ -85,6 +86,9 @@ RegisterHotstrings(BeijerBotData["hotstrings"])
 
 ; Start watching the clipboard (see lib\clipboard.ahk).
 CB_Init()
+
+; Bindings come from settings.ini (see lib\hotkeys.ahk).
+RegisterConfiguredHotkeys()
 
 ; Rebuild anything that changes between openings, then show the menu.
 ShowMainMenu(x := unset, y := unset) {
@@ -856,15 +860,8 @@ Hotkeys /  Keyboard shortcuts
 
 ;`::^space
 
-^`::
-{
-;Reload
-ShowMainMenu()
-}
 
 
-`::ShowMainMenu(132, 164)       ; Backtick (`) opens Beijer.bot
-;; `::MenuPopup.Show()
 
 
 ; The AI window handles Escape itself (see AI_HideWindow in lib\ai.ahk).
@@ -874,15 +871,14 @@ ShowMainMenu()
 ; ^+e::MultiSearchEnNl()          ; Ctrl-Shift-e hotkey
 
 
-^!c::CB_Show()                   ; Ctrl+Alt+C opens the clipboard history
+
+; Menu, clipboard, reload, Google and desktop search are bound from
+; settings.ini [Hotkeys] — see lib\hotkeys.ahk.
 
 ; Hotkeys that used to sit inside the menu block
 ^+7::Run("C:\Users\mbeijer\AppData\Roaming\talon")   ; Talon config folder
-^+d::dtSearch()                 ; Ctrl+Shift+D searches the desktop
 
-^r::Reload                      ; Reload this script when I press Ctrl+R
 
-^/::GoogleSearch()              ; Ctrl+/ triggers GoogleSearch
 ;;^+d::dtSearch()                 ; Ctrl-Shift-d opens and searches in dtSearch
 
 ;^!+1::Send("{Raw}■")   									; black square: ■
