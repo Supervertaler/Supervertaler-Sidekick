@@ -19,7 +19,7 @@ no runtime, no install step.
 | | |
 |---|---|
 | 🔍 **Web searches** | Select a term, pick a source. IATE, Juremy, JurLex, Van Dale, Linguee, Proz, Reverso, BabelNet, Wikipedia, Wiktionary, Google Patents and more — 25 out of the box. Multi-search fires a whole batch at once. |
-| 🤖 **AI actions** | Run any prompt over the selection: translate, proofread, rephrase, summarise, expand, localise. Your prompts, your models. |
+| 🤖 **AI actions** | Run any prompt over the selection: translate, proofread, rephrase, summarise, expand, localise. Provider-agnostic — Claude by default, OpenAI if you prefer — and non-blocking, so the rest of Beijer.bot keeps working while a request is in flight. |
 | 📋 **Snippet library** | Boilerplate, standard replies, special characters, regex patterns, dictionary citations — inserted at the cursor. |
 | 🔤 **Text conversions** | Upper / lower / title / sentence case, curly quotes, brackets, HTML bold, soft-hyphen removal, straight-to-curly quote conversion. |
 | 🔖 **Bookmarks** | Online and local. Forums, docs, reference sites, folders you keep reopening. |
@@ -41,6 +41,24 @@ you make it yours.
 
 > Beijer.bot requests administrator rights on launch. This is deliberate: without
 > them, its hotkeys are ignored by any window that is itself elevated.
+
+### Setting up AI
+
+Copy `settings.example.ini` to `settings.ini` and add a key:
+
+```ini
+[AI]
+Provider=anthropic     ; or: openai
+Model=                 ; blank = the provider's default
+Effort=medium          ; low | medium | high | xhigh | max  (Anthropic only)
+
+[Keys]
+anthropic=sk-ant-...
+```
+
+`settings.ini` is gitignored. Switching vendor is one line — the request and
+response shapes for each live in `lib/ai.ahk`, so adding a third provider means
+one entry in `AI_Providers()`, not a rewrite.
 
 ---
 
@@ -66,6 +84,7 @@ Each menu entry has a *type* that decides what it does with your selection:
 | `url` | Opens a web address |
 | `run` | Launches a file or folder |
 | `search` | Copies the selection and opens a URL, with `{q}` replaced by it |
+| `ai` | Runs an AI prompt over the selection |
 | `action` | Calls a built-in function |
 | `submenu` | Holds other entries |
 | `heading` / `separator` | Structure only |
@@ -83,19 +102,36 @@ Adding a new terminology source is one `search` entry:
 The selection is UTF-8 percent-encoded before substitution, so terms containing
 `&`, `?`, `+` or accented characters work correctly.
 
+An AI action is just as short — and every prompt is editable in the same place
+as your snippets:
+
+```json
+{
+  "kind": "ai",
+  "label": "Translate (Dutch to English)",
+  "prompt": "Give ten possible translations, technical to general.",
+  "effort": "high"
+}
+```
+
+Optional per-entry overrides: `system`, `model`, `provider`, `effort`,
+`maxtokens`.
+
 ---
 
 ## Layout
 
 ```
-Beijer.bot.ahk        hotkeys, AI functions, text conversions
+Beijer.bot.ahk        hotkeys, text conversions, local searches
 lib/
   menu_builder.ahk    builds the menu from data
+  ai.ahk              provider-agnostic AI requests
   editor.ahk          the Library Editor
   data.ahk            reads and writes the JSON
   jxon.ahk            JSON parser (third-party)
 data/                 your content — gitignored
 data.example/         generic starter set, shipped
+settings.ini          API keys — gitignored
 ```
 
 ---
@@ -105,11 +141,8 @@ data.example/         generic starter set, shipped
 - **Clipboard manager** — persistent text and image history, searchable, with
   the privacy controls the job needs: capture toggle, auto-expiry, and an
   exclusion list for password managers.
-- **Provider-agnostic AI** — swap between Claude, OpenAI and others from a
-  config file instead of being wired to one vendor's endpoint. Non-blocking, so
-  a slow request no longer freezes the script.
-- **Prompt library** — prompts as editable data alongside snippets, so a custom
-  prompt is as easy to add as a snippet.
+- **Streaming AI replies** — show the answer as it arrives rather than after
+  the full response lands.
 
 ---
 
@@ -117,7 +150,8 @@ data.example/         generic starter set, shipped
 
 The AI request handling began life in
 [ChatGPT-AutoHotkey-Utility](https://github.com/kdalanon/ChatGPT-AutoHotkey-Utility)
-by kdalanon, and has been substantially rewritten since.
+by kdalanon, and has since been rewritten as the provider-agnostic layer in
+`lib/ai.ahk`.
 
 JSON parsing uses [cJson/Jxon](https://github.com/cocobelgica/AutoHotkey-JSON).
 

@@ -215,68 +215,68 @@
     },
     {
       "kind": "heading",
-      "label": "CHATGPT:",
+      "label": "AI:",
       "barbreak": true
     },
     {
-      "kind": "action",
-      "label": "• Ask ChatGPT question (in any language)",
-      "func": "GenerateReply"
+      "kind": "ai",
+      "label": "• Ask a question (any language)",
+      "prompt": "Craft a response to any given message, regardless of the language it's in. The response should adhere to the original sender's tone, style, formatting, and cultural or regional context. Maintain the same level of formality and emotional tone as the original message. Responses may be of any length, provided they effectively communicate the response to the original sender:"
     },
     {
-      "kind": "action",
+      "kind": "ai",
       "label": "• Translate (Dutch to English)",
-      "func": "TranslateDutchEnglish"
+      "prompt": "Please generate a numbered list of ten possible translations from Dutch to English, ensuring the translations accurately convey the intended meaning or idea without excessive deviation. Please also ensure you provide a range of different versions, ranging from technical to general. If the text is a single term, please treat it as a terminology translation/question, and also give some extra info in brackets behind each term."
     },
     {
-      "kind": "action",
+      "kind": "ai",
       "label": "• Translate (English to Dutch)",
-      "func": "TranslateEnglishDutch"
+      "prompt": "Please generate a numbered list of ten possible translations from English to Dutch, ensuring the translations accurately convey the intended meaning or idea without excessive deviation. Please also ensure you provide a range of different versions, ranging from technical to general. If the text is a single term, please treat it as a terminology translation/question, and also give some extra info in brackets behind each term."
     },
     {
-      "kind": "action",
+      "kind": "ai",
       "label": " Localize",
-      "func": "Localize"
+      "prompt": "Localize the selected text from US English into UK English, making only basic changes, such as: change all z's to s's (organization ➜ organisation); o ➜ ou (color, etc); change all joined-up em dashes to spaced n dashes ('contribute—it's a fundamental' ➜ 'contribute – it's a fundamental'); change any specifically US words to British equivalents (truck ➜ lorry, toll free number ➜ freephone number); change Imperial units to metric; and anything else you can think of that falls within this remit. However, don't rewrite anything. Output: (1) Original text…, an empty line, (2) Edited text:…, an empty line, (3) Changes:… (in bullet points)."
     },
     {
-      "kind": "action",
+      "kind": "ai",
       "label": "• Translate (Custom)",
-      "func": "TranslateCustom"
+      "prompt": "Translate the selection from Dutch to English or vice versa, ensuring the translation accurately conveys the intended meaning or idea without excessive deviation. If the text is a single term, please treat it as a terminology translation/question. # Here is a summary of the complete text it has been extracted from for you to use as context: This is the operator’s manual for the TAFE 240S agricultural tractor, containing safety instructions, operating procedures, maintenance guidance, and technical specifications. # Provide me only with the Dutch or English translation, nothing else."
     },
     {
-      "kind": "action",
+      "kind": "ai",
       "label": "🔊 Explain (“Explain”)",
-      "func": "Explain"
+      "prompt": "Explain the following:"
     },
     {
-      "kind": "action",
+      "kind": "ai",
       "label": "• Proofread (multilingual)",
-      "func": "ProofreadMulti"
+      "prompt": "Please correct the text I provide. Your job is to identify and amend any typos, misspellings, missing words, etc., regardless of the language it's in. It's important that the language of the original text be maintained in the corrected version. You're allowed to change the word order where necessary for coherence, but remember to keep the original intent of the text intact. The output should be just the corrected text, with no additional comments or markings. Present the original above the proofread version, with the original and proofread versions indicated like this: 'Original: …' and 'Proofread: …' Please put 'Original: …' and 'Proofread: …' on their own lines, and the text itself on the lines directly below these words, so the text in question is aligned vis-à-vis the left margin. Please also separate the two with a line, so before 'Proofread: ', there should be a dashed line. If no changes are made, indicate this at the very bottom as follows: 'Yay, no changes were made.' Please provide a numbered list of each change you made at the very bottom, as follows: 1. het ➜ de (explain why here)\n2. onderneem ➜ onderneemt (explain why here)\n1. met één trage laadtij ➜ met een trage laadtijd (explain why here). // Please also put single asterisks around any changed bits in the Original section. // Please copy the proofread version to the clipboard, so just the original, with any changes, to the Windows clipboard!"
     },
     {
-      "kind": "action",
+      "kind": "ai",
       "label": "• Rephrase (5 options)",
-      "func": "Rephrase"
+      "prompt": "Rephrase the following text or paragraph to ensure clarity, conciseness, and a natural flow. Give me 5 different versions. The revision should preserve the tone, style, and formatting of the original text. Additionally, correct any grammar and spelling errors you come across. If the text is Dutch, give me Dutch suggestions; if the text is English, give me English suggestions. Present the original above the revised versions, with the original and revised versions indicated like this: 'Original: …' and 'Revised versions: …'"
     },
     {
-      "kind": "action",
+      "kind": "ai",
       "label": "• Make it sound better",
-      "func": "MakeItSoundBetter"
+      "prompt": "can you please rewrite this so it sounds better?"
     },
     {
-      "kind": "action",
+      "kind": "ai",
       "label": "• Summarise",
-      "func": "Summarise"
+      "prompt": "Summarise the following:"
     },
     {
-      "kind": "action",
+      "kind": "ai",
       "label": "• Expand",
-      "func": "Expand"
+      "prompt": "Considering the original tone, style, and formatting, please help me express the following idea in a clearer and more articulate way. The style of the message could be formal, informal, casual, empathetic, assertive, or persuasive, depending on the context of the original message. The text should be divided into paragraphs for readability. No specific language complexities need to be avoided and the focus should be equally distributed throughout the message. There's no set minimum or maximum length. Here's what I’m trying to say:"
     },
     {
-      "kind": "action",
+      "kind": "ai",
       "label": "• Summarize GitHub Issue/Bug",
-      "func": "SummarizeGitHubIssue"
+      "prompt": "Summarise the following GitHub issue into a GitHub issue title. If it is a feature request, preface it with '[Feature] ', if it is a bug, preface it with '[Bug] '. Please use sentence case, not title case. Also rewrite the text given, streamlining it and removing any errors. Use UK English. Your output should be the title followed by your corrected text:"
     },
     {
       "kind": "separator"

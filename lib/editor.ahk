@@ -325,7 +325,7 @@ LE_Save() {
 }
 
 LE_OnClose(*) {
-    global LE_Gui, LE_Dirty
+    global LE_Gui, LE_Dirty, BeijerBotData
     if LE_Dirty {
         answer := MsgBox("You have unsaved changes.`n`nSave before closing?",
                          "Library Editor", "YesNoCancel Icon?")

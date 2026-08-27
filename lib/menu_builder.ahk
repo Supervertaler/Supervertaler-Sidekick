@@ -11,6 +11,7 @@
 ;   url       value      open a web address
 ;   run       value      launch a local file or folder
 ;   search    url        copy the selection and open url with {q} replaced
+;   ai        prompt     run an AI prompt over the selection (see lib/ai.ahk)
 ;   action    func, arg  call a built-in registered via RegisterAction()
 ;
 ; Any entry may set "barbreak": true to start a new menu column.
@@ -77,6 +78,9 @@ PopulateMenu(m, items) {
                 m.Add(label, HandlerSearch(GetKey(item, "url", ""),
                                            GetKey(item, "browser", "")), opts)
 
+            case "ai":
+                m.Add(label, HandlerAI(item), opts)
+
             case "action":
                 m.Add(label, HandlerAction(GetKey(item, "func", ""),
                                            GetKey(item, "arg", "")), opts)
@@ -124,6 +128,20 @@ HandlerSearch(url, browser) {
 
 HandlerAction(name, arg) {
     return (*) => RunAction(name, arg)
+}
+
+; AI entries carry their prompt plus optional per-entry overrides (system,
+; model, provider, effort), so the whole entry is handed to AI_Ask().
+HandlerAI(item) {
+    prompt := GetKey(item, "prompt", "")
+    opts := Map()
+    for field in ["system", "model", "provider", "effort", "maxtokens",
+                  "selection"] {
+        v := GetKey(item, field, "")
+        if (v != "")
+            opts[field] := v
+    }
+    return (*) => AI_Ask(prompt, opts)
 }
 
 ; ---------------------------------------------------------------------------
