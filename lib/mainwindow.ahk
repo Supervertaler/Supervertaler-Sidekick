@@ -23,6 +23,7 @@ global MW_MenuHead  := ""
 
 global MW_Nodes     := Map()   ; tree item id -> menu entry Map
 global MW_Sections  := []      ; top-level heading node ids, in order
+global MW_Rebuilding := false  ; true while the tree is being torn down
 global MW_Shown     := []      ; clips currently listed, in row order
 global MW_Selection := ""      ; text selected when the window opened
 global MW_Source    := 0       ; window to paste back into
@@ -135,10 +136,16 @@ MW_RefreshTree() {
     needle := ""
     try needle := Trim(MW_Search.Value)
 
-    MW_Tree.Opt("-Redraw")
-    MW_Tree.Delete()
+    ; Delete() clears the selection, which fires ItemSelect, which asks for
+    ; the section legend — while MW_Sections still holds ids belonging to the
+    ; tree being destroyed. Drop the stale ids first and mute the handler for
+    ; the duration of the rebuild.
+    MW_Rebuilding := true
     MW_Nodes := Map()
     MW_Sections := []
+
+    MW_Tree.Opt("-Redraw")
+    MW_Tree.Delete()
 
     if (needle = "")
         MW_FillTree(BeijerBotData["menu"], 0)
@@ -154,6 +161,7 @@ MW_RefreshTree() {
     MW_Sections := kept
 
     MW_Tree.Opt("+Redraw")
+    MW_Rebuilding := false
 }
 
 ; Full hierarchy, folders closed, when nothing is being searched for.
@@ -266,6 +274,12 @@ MW_UpdateStatus() {
 
 MW_MarkFocus(which) {
     global MW_ClipHead, MW_MenuHead, MW_HEAD_ON, MW_HEAD_OFF, MW_Status
+    global MW_Rebuilding
+
+    ; Selection churn during a rebuild is not the user moving around.
+    if (MW_Rebuilding)
+        return
+
     try {
         MW_ClipHead.SetFont(which = "clips" ? MW_HEAD_ON : MW_HEAD_OFF)
         MW_MenuHead.SetFont(which = "menu" ? MW_HEAD_ON : MW_HEAD_OFF)
@@ -527,8 +541,11 @@ MW_ShowSectionHint(n) {
     global MW_Status, MW_Tree, MW_Sections
     if (n < 1 || n > MW_Sections.Length)
         return
-    try MW_Status.Value := "Section " n "/" MW_Sections.Length ": "
-        . MW_Tree.GetText(MW_Sections[n])
+    name := ""
+    try name := MW_Tree.GetText(MW_Sections[n])
+    catch
+        return
+    try MW_Status.Value := "Section " n "/" MW_Sections.Length ": " name
         . "   ·   Alt+1-9 jump  ·  Ctrl+↑↓ next section  ·  Esc close"
 }
 
@@ -539,7 +556,13 @@ MW_SectionLegend() {
     for i, id in MW_Sections {
         if (i > 9)
             break
-        out .= (out = "" ? "" : "   ") "Alt+" i " " MW_Tree.GetText(id)
+        ; GetText throws on an id from a tree that has been rebuilt. Skip it
+        ; rather than let a status-bar refresh raise an error dialog.
+        text := ""
+        try text := MW_Tree.GetText(id)
+        catch
+            continue
+        out .= (out = "" ? "" : "   ") "Alt+" i " " text
     }
     return out
 }
