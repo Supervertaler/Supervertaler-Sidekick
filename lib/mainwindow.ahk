@@ -18,8 +18,6 @@ global MW_Search    := ""
 global MW_Clips     := ""
 global MW_Tree      := ""
 global MW_Status    := ""
-global MW_ClipHead  := ""
-global MW_MenuHead  := ""
 
 global MW_Nodes     := Map()   ; tree item id -> menu entry Map
 global MW_Sections  := []      ; top-level heading node ids, in order
@@ -47,8 +45,6 @@ global MW_QTGoBtn   := ""
 ; Enough slots for every engine plus room to add a few.
 MW_QT_SLOTS := 8
 
-MW_HEAD_ON  := "c0A5FA0"       ; focused column header
-MW_HEAD_OFF := "c606060"
 
 ; ---------------------------------------------------------------------------
 ; tab: 1 = clipboard (default), 2 = QuickTrans. Opening straight onto the
@@ -79,7 +75,7 @@ MW_Show(tab := 1) {
 
     if (tab = 2) {
         MW_Tabs.Value := 2
-        try MW_QTSource.Focus()
+        MW_FocusResults()
         MW_MarkFocus("clips")
     } else {
         ; Land on the clipboard, not the search box: the common case is
@@ -108,7 +104,6 @@ MW_ShowQuickTrans(*) {
 
 MW_Build() {
     global MW_Gui, MW_Search, MW_Clips, MW_Tree, MW_Status
-    global MW_ClipHead, MW_MenuHead
     global MW_Tabs, MW_QTSource, MW_QTSrc, MW_QTTgt
     global MW_QTRowCtl, MW_QTLabel, MW_QTFromLbl, MW_QTArrow
     global MW_QTSwapBtn, MW_QTGoBtn, MW_QT_SLOTS
@@ -124,12 +119,11 @@ MW_Build() {
     MW_Search := MW_Gui.Add("Edit", "x+4 yp-3 w800")
     MW_Search.OnEvent("Change", (*) => MW_OnSearch())
 
-    MW_ClipHead := MW_Gui.Add("Text", "xm y+10 w540 " MW_HEAD_ON,
-                              "CLIPBOARD  /  QUICKTRANS")
-    MW_MenuHead := MW_Gui.Add("Text", "x+10 yp w440 " MW_HEAD_OFF, "MENU")
+    ; No column headings: the tab strip already names the left pane, and a
+    ; lone "MENU" label over the tree earned nothing but a row of space.
 
     ; ---- left pane: two tabs ------------------------------------------
-    MW_Tabs := MW_Gui.Add("Tab3", "xm y+4 w540 h430",
+    MW_Tabs := MW_Gui.Add("Tab3", "xm y+10 w540 h430",
                           ["Clipboard", "QuickTrans"])
     MW_Tabs.OnEvent("Change", (*) => MW_OnTabChange())
 
@@ -215,10 +209,10 @@ MW_ActiveTab() {
 }
 
 MW_OnTabChange() {
-    global MW_Clips, MW_QTSource
+    global MW_Clips
     if (MW_ActiveTab() = 2) {
-        try MW_QTSource.Focus()
         MW_QTLayoutRows()
+        MW_FocusResults()
     } else {
         try MW_Clips.Focus()
     }
@@ -320,9 +314,14 @@ MW_RenderTranslations(finished := false) {
     MW_Gui.Opt("+OwnDialogs")
     MW_QTLayoutRows()
 
-    if (finished)
+    if (finished) {
+        ; Once there is something to insert, take focus off the source box so
+        ; the digits act on the results instead of being typed into it.
+        if MW_EditingSource()
+            MW_FocusResults()
         MW_SetStatus("Done.  1-9 insert  ·  ↑↓ choose  ·  Enter insert  ·  "
                    . "Ctrl+Enter re-translate  ·  → menu  ·  Esc close")
+    }
     else
         MW_SetStatus("Translating…")
 }
@@ -625,17 +624,11 @@ MW_UpdateStatus() {
 }
 
 MW_MarkFocus(which) {
-    global MW_ClipHead, MW_MenuHead, MW_HEAD_ON, MW_HEAD_OFF, MW_Status
-    global MW_Rebuilding
+    global MW_Status, MW_Rebuilding
 
     ; Selection churn during a rebuild is not the user moving around.
     if (MW_Rebuilding)
         return
-
-    try {
-        MW_ClipHead.SetFont(which = "clips" ? MW_HEAD_ON : MW_HEAD_OFF)
-        MW_MenuHead.SetFont(which = "menu" ? MW_HEAD_ON : MW_HEAD_OFF)
-    }
 
     ; The hints are different on each side, so show the ones that apply.
     if (which = "menu") {
@@ -880,13 +873,26 @@ MW_Left() {
 
 ; Back to whichever tab is on show, not always the clipboard.
 MW_FocusLeft() {
-    global MW_QTSource
     if (MW_ActiveTab() = 2) {
-        try MW_QTSource.Focus()
+        MW_FocusResults()
         MW_MarkFocus("clips")
         return
     }
     MW_FocusClips()
+}
+
+; Focus belongs on the results, not the source box. The numbered rows exist
+; so 1-9 inserts one, and that cannot work while the digits are being typed
+; into the source. The source box is one Tab away when it needs editing.
+MW_FocusResults() {
+    global MW_QTRowCtl, MW_QTRows, MW_QTSource
+    if (MW_QTRows.Length > 0 && MW_QTRowCtl.Length > 0) {
+        try {
+            MW_QTRowCtl[1]["box"].Focus()
+            return
+        }
+    }
+    try MW_QTSource.Focus()
 }
 
 MW_TogglePane() {
@@ -1139,7 +1145,6 @@ QT_Int(v, default) {
 
 MW_OnSize(thisGui, minMax, width, height) {
     global MW_Search, MW_Clips, MW_Tree, MW_Status
-    global MW_ClipHead, MW_MenuHead
     global MW_Tabs, MW_QTSource
     if (minMax = -1)
         return
@@ -1157,9 +1162,6 @@ MW_OnSize(thisGui, minMax, width, height) {
 
     try {
         MW_Search.Move(, , width - pad * 2 - 50)
-        MW_ClipHead.Move(, , leftW)
-        MW_MenuHead.Move(pad + leftW + gap, , rightW)
-
         MW_Tabs.Move(, , leftW, h)
         inner := leftW - 16              ; inside the tab control's border
 
