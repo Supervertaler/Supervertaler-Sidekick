@@ -22,6 +22,7 @@ global MW_ClipHead  := ""
 global MW_MenuHead  := ""
 
 global MW_Nodes     := Map()   ; tree item id -> menu entry Map
+global MW_Sections  := []      ; top-level heading node ids, in order
 global MW_Shown     := []      ; clips currently listed, in row order
 global MW_Selection := ""      ; text selected when the window opened
 global MW_Source    := 0       ; window to paste back into
@@ -129,7 +130,7 @@ MW_CustomDraw(ctrl, lParam) {
 ; Menu pane
 ; ---------------------------------------------------------------------------
 MW_RefreshTree() {
-    global MW_Tree, MW_Nodes, MW_Search, BeijerBotData
+    global MW_Tree, MW_Nodes, MW_Sections, MW_Search, BeijerBotData
 
     needle := ""
     try needle := Trim(MW_Search.Value)
@@ -137,18 +138,34 @@ MW_RefreshTree() {
     MW_Tree.Opt("-Redraw")
     MW_Tree.Delete()
     MW_Nodes := Map()
+    MW_Sections := []
 
     if (needle = "")
         MW_FillTree(BeijerBotData["menu"], 0)
     else
         MW_FillFlat(BeijerBotData["menu"], needle, "")
 
+    ; A section that collected nothing is not worth a jump slot.
+    kept := []
+    for id in MW_Sections {
+        if MW_Tree.GetChild(id)
+            kept.Push(id)
+    }
+    MW_Sections := kept
+
     MW_Tree.Opt("+Redraw")
 }
 
 ; Full hierarchy, folders closed, when nothing is being searched for.
+;
+; A heading becomes a real parent holding everything up to the next heading.
+; They used to be siblings of the entries beneath them, which left the tree
+; one long flat list with a few bold rows in it — nothing to collapse, and
+; nowhere to jump to.
 MW_FillTree(items, parent) {
-    global MW_Tree, MW_Nodes
+    global MW_Tree, MW_Nodes, MW_Sections
+
+    section := 0        ; heading currently collecting entries, 0 = none
 
     for item in items {
         kind := GetKey(item, "kind", "")
@@ -159,20 +176,36 @@ MW_FillTree(items, parent) {
         if (label = "")
             continue
 
+        if (kind = "heading") {
+            ; Not every heading is a section. The old menu used inert NOP
+            ; rows for decoration ("Bracket [number]", voice-command
+            ; reminders) and those came through as headings too. The data
+            ; distinguishes them by its own convention: a real section title
+            ; ends with a colon. Anything else is just a row.
+            raw := Trim(GetKey(item, "label", ""))
+            if !RegExMatch(raw, "[:：]\s*$") {
+                id := MW_Tree.Add(label, section ? section : parent, "Bold")
+                MW_Nodes[id] := ""
+                continue
+            }
+
+            section := MW_Tree.Add(label, parent, "Bold")
+            MW_Nodes[section] := ""          ; a container, not runnable
+            if (parent = 0)
+                MW_Sections.Push(section)    ; for Alt+1-9 and Ctrl+↑/↓
+            continue
+        }
+
+        target := section ? section : parent
+
         if (kind = "submenu") {
-            id := MW_Tree.Add(label, parent)
+            id := MW_Tree.Add(label, target)
+            MW_Nodes[id] := ""
             MW_FillTree(GetKey(item, "items", []), id)
             continue
         }
 
-        if (kind = "heading") {
-            ; A heading opens a group holding everything up to the next one.
-            id := MW_Tree.Add(label, parent, "Bold")
-            MW_Nodes[id] := ""          ; not runnable, just a container
-            continue
-        }
-
-        id := MW_Tree.Add(label, parent)
+        id := MW_Tree.Add(label, target)
         MW_Nodes[id] := item
     }
 }
@@ -232,11 +265,20 @@ MW_UpdateStatus() {
 }
 
 MW_MarkFocus(which) {
-    global MW_ClipHead, MW_MenuHead, MW_HEAD_ON, MW_HEAD_OFF
+    global MW_ClipHead, MW_MenuHead, MW_HEAD_ON, MW_HEAD_OFF, MW_Status
     try {
         MW_ClipHead.SetFont(which = "clips" ? MW_HEAD_ON : MW_HEAD_OFF)
         MW_MenuHead.SetFont(which = "menu" ? MW_HEAD_ON : MW_HEAD_OFF)
     }
+
+    ; The hints are different on each side, so show the ones that apply.
+    if (which = "menu") {
+        legend := MW_SectionLegend()
+        try MW_Status.Value := legend != ""
+            ? legend "   ·   Ctrl+↑↓ section"
+            : "→ open  ·  ← close  ·  Enter use  ·  Esc close"
+    } else
+        MW_UpdateStatus()
 }
 
 MW_FocusClips() {
@@ -286,7 +328,49 @@ MW_Keys() {
     Hotkey("Tab",         (*) => MW_TogglePane(), "On")
     Hotkey("^f",          (*) => MW_FocusSearch(), "On")
 
+    ; Section jumping
+    Hotkey("^Down",       (*) => MW_StepSection(1),  "On")
+    Hotkey("^Up",         (*) => MW_StepSection(-1), "On")
+    Hotkey("Home",        (*) => MW_GoEdge(1),  "On")
+    Hotkey("End",         (*) => MW_GoEdge(-1), "On")
+
+    Loop 9 {
+        n := A_Index
+        Hotkey("!" n, MW_MakeSectionJump(n), "On")
+    }
+
     HotIfWinActive()
+}
+
+MW_MakeSectionJump(n) {
+    return (*) => MW_GoSection(n)
+}
+
+; Home/End go to the ends of whichever pane has focus.
+MW_GoEdge(where) {
+    global MW_Clips, MW_Tree, MW_Shown
+
+    if MW_FocusedIs(MW_Clips) {
+        if (MW_Shown.Length = 0)
+            return
+        row := (where = 1) ? 1 : MW_Shown.Length
+        MW_Clips.Modify(0, "-Select")
+        MW_Clips.Modify(row, "Select Focus Vis")
+        return
+    }
+
+    if (where = 1) {
+        first := MW_Tree.GetNext(0)
+        if first
+            MW_Tree.Modify(first, "Select Vis")
+        return
+    }
+    last := 0
+    id := 0
+    while (id := MW_Tree.GetNext(id, "Full"))
+        last := id
+    if last
+        MW_Tree.Modify(last, "Select Vis")
 }
 
 MW_FocusSearch() {
@@ -304,11 +388,16 @@ MW_Down() {
 }
 
 MW_Up() {
-    global MW_Search, MW_Clips
+    global MW_Search, MW_Clips, MW_Tree
     if MW_FocusedIs(MW_Search)
         return
-    ; At the top of the clipboard list, go back up into the search box.
+    ; At the top of either pane, go back up into the search box.
     if (MW_FocusedIs(MW_Clips) && MW_Clips.GetNext(0) = 1) {
+        MW_FocusSearch()
+        return
+    }
+    if (MW_FocusedIs(MW_Tree)
+        && MW_Tree.GetSelection() = MW_Tree.GetNext(0)) {
         MW_FocusSearch()
         return
     }
@@ -374,6 +463,85 @@ MW_TogglePane() {
         MW_FocusTree()
     else
         MW_FocusClips()
+}
+
+; ---------------------------------------------------------------------------
+; Jumping around the menu
+;
+; Six or seven sections, each holding a dozen or more entries, is too much to
+; walk one row at a time. Alt+1-9 lands on a section directly; Ctrl+↑/↓ steps
+; between them from wherever you are.
+; ---------------------------------------------------------------------------
+MW_GoSection(n) {
+    global MW_Sections, MW_Tree
+
+    if (n < 1 || n > MW_Sections.Length)
+        return
+    id := MW_Sections[n]
+
+    MW_FocusTree()
+    MW_Tree.Modify(id, "Expand Select Vis")
+    MW_ShowSectionHint(n)
+}
+
+; Which top-level node the selection sits under.
+MW_TopAncestor(id) {
+    global MW_Tree
+    if !id
+        return 0
+    while (parent := MW_Tree.GetParent(id))
+        id := parent
+    return id
+}
+
+MW_StepSection(dir) {
+    global MW_Sections, MW_Tree
+
+    if (MW_Sections.Length = 0)
+        return
+
+    top := MW_TopAncestor(MW_Tree.GetSelection())
+
+    ; Where does that sit in the section list?
+    at := 0
+    for i, id in MW_Sections {
+        if (id = top) {
+            at := i
+            break
+        }
+    }
+
+    if (at = 0)
+        next := (dir > 0) ? 1 : MW_Sections.Length
+    else {
+        next := at + dir
+        if (next < 1)
+            next := MW_Sections.Length          ; wrap
+        if (next > MW_Sections.Length)
+            next := 1
+    }
+    MW_GoSection(next)
+}
+
+MW_ShowSectionHint(n) {
+    global MW_Status, MW_Tree, MW_Sections
+    if (n < 1 || n > MW_Sections.Length)
+        return
+    try MW_Status.Value := "Section " n "/" MW_Sections.Length ": "
+        . MW_Tree.GetText(MW_Sections[n])
+        . "   ·   Alt+1-9 jump  ·  Ctrl+↑↓ next section  ·  Esc close"
+}
+
+; A list of the sections with their numbers, so the shortcuts are findable.
+MW_SectionLegend() {
+    global MW_Sections, MW_Tree
+    out := ""
+    for i, id in MW_Sections {
+        if (i > 9)
+            break
+        out .= (out = "" ? "" : "   ") "Alt+" i " " MW_Tree.GetText(id)
+    }
+    return out
 }
 
 MW_Activate() {
