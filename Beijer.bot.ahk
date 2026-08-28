@@ -280,30 +280,6 @@ UriEncode(Uri) {
     return Uri
 }
 
-AcronymFinder(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://www.acronymfinder.com/~/search/af.aspx?string=exact&Acronym=" UriEncode(CopiedText)
-    Run('msedge.exe "' SearchURL '"')
-}
-
-Beijerterm(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://beijerterm.com/?q=" UriEncode(CopiedText)
-    Run('msedge.exe "' SearchURL '"')
-}
-
 
 MicrosoftTerminologySearch(*) {
     A_Clipboard := "" ; Clear clipboard variable
@@ -317,29 +293,6 @@ MicrosoftTerminologySearch(*) {
     Run('msedge.exe "' SearchURL '"')
 }
 
-VanDaleDutchEnglish(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://zoeken.vandale.nl/?dictionaryId=gne&query=" UriEncode(CopiedText)
-    Run('msedge.exe "' SearchURL '"')
-}
-
-VanDaleEnglishDutch(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://zoeken.vandale.nl/?dictionaryId=gen&query=" UriEncode(CopiedText)
-    Run('msedge.exe "' SearchURL '"')
-}
 
 GoogleSearch(*) {
     A_Clipboard := "" ; Clear clipboard variable
@@ -355,245 +308,6 @@ GoogleSearch(*) {
     Run('msedge.exe "' SearchURL '"')
 }
 
-GooglePatents(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := 'https://patents.google.com/?q="' UriEncode(CopiedText) '"'
-    Run('msedge.exe "' SearchURL '"')
-}
-
-FELOnline(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "http://www.felonline.nl/felo/?keywords=" UriEncode(CopiedText) "&action=user_translate&lexiconSearch=Vertaal"
-    Run('msedge.exe "' SearchURL '"')
-}
-
-Linguee(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://www.linguee.com/dutch-english/search?source=auto&query=" UriEncode(CopiedText)
-    Run('msedge.exe "' SearchURL '"')
-}
-
-Oxforddictionaries(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://premium.oxforddictionaries.com/definition/english/" UriEncode(CopiedText)
-    Run('msedge.exe "' SearchURL '"')
-}
-
-BabelNetDutchEnglish(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://babelnet.org/search?word=" UriEncode(CopiedText) "&lang=NL&transLang=EN"
-    Run('msedge.exe "' SearchURL '"')
-}
-
-BabelNetEnglishDutch(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://babelnet.org/search?word=" UriEncode(CopiedText) "&lang=EN&transLang=NL"
-    Run('msedge.exe "' SearchURL '"')
-}
-
-JuremyDutchEnglish(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://juremy.com/search?src=nld&dst=eng&q=" UriEncode(CopiedText) "&opts=ia&tool=iws"
-    Run('msedge.exe "' SearchURL '"')
-}
-
-JuremyEnglishDutch(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://juremy.com/search?src=eng&dst=nld&q=" UriEncode(CopiedText) "&opts=ia&tool=iws"
-    Run('msedge.exe "' SearchURL '"')
-}
-
-IATESearchNlEn(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://iate.europa.eu/search/byUrl?term=" UriEncode(CopiedText) "&sl=nl&tl=en"
-    Run('msedge.exe "' SearchURL '"')
-}
-
-IATESearchEnNl(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://iate.europa.eu/search/byUrl?term=" UriEncode(CopiedText) "&sl=en&tl=nl"
-    Run('msedge.exe "' SearchURL '"')
-}
-
-JurLexDutchEnglish(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://www.lexicons.nl/lemma?searchterm=" UriEncode(CopiedText) "&SESSIONdictionary=jel_nlen"
-    Run('msedge.exe "' SearchURL '"')
-}
-
-JurLexEnglishDutch(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://www.lexicons.nl/lemma?searchterm=" UriEncode(CopiedText) "&SESSIONdictionary=jel_ennl"
-    Run('msedge.exe "' SearchURL '"')
-}
-
-ReversoDutchEnglish(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://context.reverso.net/translation/dutch-english/" UriEncode(CopiedText)
-    Run('msedge.exe "' SearchURL '"')
-}
-
-ReversoEnglishDutch(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://context.reverso.net/translation/english-dutch/" UriEncode(CopiedText)
-    Run('msedge.exe "' SearchURL '"')
-}
-
-ProzDutchEnglish(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://www.proz.com/search/?term=" UriEncode(CopiedText) "&from=dut&to=eng&results_per_page=25&es=1"
-    Run('msedge.exe "' SearchURL '"')
-}
-
-ProzEnglishDutch(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    Run SearchURL := "https://www.proz.com/search/?term=" UriEncode(CopiedText) "&from=eng&to=dut&results_per_page=25&es=1"
-    Run('msedge.exe "' SearchURL '"')
-}
-
-WikipediaDutch(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    Run SearchURL := "https://nl.wikipedia.org/w/index.php?search=" UriEncode(CopiedText)
-    Run('msedge.exe "' SearchURL '"')
-}
-
-WikipediaEnglish(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    Run SearchURL := "https://en.wikipedia.org/w/index.php?search=" UriEncode(CopiedText)
-    Run('msedge.exe "' SearchURL '"')
-}
-
-WiktionaryDutch(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://nl.wiktionary.org/wiki/" UriEncode(CopiedText)
-    Run('msedge.exe "' SearchURL '"')
-}
-
-WiktionaryEnglish(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
-        return
-    }
-    CopiedText := A_Clipboard
-    SearchURL := "https://en.wiktionary.org/wiki/" UriEncode(CopiedText)
-    Run('msedge.exe "' SearchURL '"')
-}
 
 }
 /*
@@ -750,10 +464,6 @@ SelectToClip() {
 }
 ;; LogiTerm end
 
-RunWikipediaLinkFinder(*) {
-    Run("D:\Software\Python\Wikipedia Interlanguage Link Finder\WikipediaInterlanguageLinkFinder.py")
-    return
-}
 }
 
 /*
@@ -762,30 +472,6 @@ Bookmarks (web URLs)
 ====================================================
 */
 
-AutoHotkeyHelpURL(*) {
-    Run "https://www.autohotkey.com/docs/v2/"
-}
-
-Gmail(*) {
-    Run "https://mail.google.com/mail/u/0/#inbox"
-}
-
-BeijertermURL(*) {
-    Run "https://michaelbeijer.co.uk/"
-}
-
-BeijerbotURL(*) {
-    Run "https://beijer.bot/"
-}
-
-BeijerbotEditURL(*) {
-    Run "https://business27.web-hosting.com:2083/cpsess9102004596/frontend/jupiter/filemanager/editors/html_editor.html?file=index.html&fileop=&dir=%2Fhome%2Fwbymlrtq%2Fbeijer.bot&dirop=&charset=utf-8&file_charset=&baseurl=http%3A%2F%2Fbeijer.bot.beijer.uk&basedir=%2Fhome%2Fwbymlrtq%2Fbeijer.bot"
-}
-
-
-BeijerUkEditURL(*) {
-    Run "https://business27.web-hosting.com:2083/cpsess3455211569/frontend/jupiter/sitebuilder/index.live.php"
-}
 
 Grammarly(*) {
     WinActivate("wkwkwk.checking - Grammarly - Google Chrome ahk_class Chrome_WidgetWin_1")
@@ -812,17 +498,11 @@ Snippets
 
 ; Special characters
 
-MiscSpecialChars(*) {
-    SendInput "▣ ■ □ ▢ ◯ ▲ ▶ ► ▼ ◆ ◢ ◣ ◤ ◥ ✪ ✺ ❋ ⁂ ∰ ⋰ ⋱ ∶ ∷ ∴ ∵ ⋘ ⋙ ✈ ✿ ☺ ☻ ☹ ☼ ☂ ☃ ⌇ ⚛ ⌨ ✆ ☎  ⌘ ⌥ ⇧ ↩ ✞ ✡ ☭ ← → ↑ ↓ ➫ ⬇ ⬆ ☜ ☞ ☝ ☟ ✍ ✎ ✌ ☮ ✔ ★ ☆ ♺ ⚑ ⚐ ✉ ✄ ⌲ ✈ ♦ ♣ ♠ ♥ ❤ ♡ ♪ ♩ ♫ ♬ ♯ ♀ ♂ ⚢ ⚣ ❑ ❒ ◈ ◐ ◑ ✖ ∞ « » ‹ › “ ” “ ” „ ‚ – — | ⁄ \ [ ] { } § ¶ ¡ ¿ ‽ ⁂ ※ ± × ~ ≈ ÷ ≠ π † ‡ ¥ € $ ¢ £ ß © ® @ ™ ° ‰ … · • ● ⌨"
-}
 
 ⇄(*) {
     SendInput "⇄"
 }
 
-PrimeSymbols(*) {
-    SendInput "′ ″ ‴ ⁗"
-}
 
 ë(*) {
     SendInput "ë"
@@ -834,24 +514,12 @@ PrimeSymbols(*) {
 
 ; Telephone numbers
 
-MyMobile(*) {
-    SendInput "07475771720"
-}
-
 
 /*
 ====================================================
 Talon Voice (menu items)
 ====================================================
 */
-
-BeijerTalon(*) {
-    Run "C:\Users\mbeijer\AppData\Roaming\talon\user\my_talon\beijer.talon"
-}
-
-memoQTalon(*) {
-    Run "C:\Users\mbeijer\AppData\Roaming\talon\user\my_talon\memoQ.talon"
-}
 
 
 ;
@@ -867,9 +535,6 @@ Hotkeys /  Keyboard shortcuts
 ;`::^space
 
 
-
-
-
 ; The AI window handles Escape itself (see AI_HideWindow in lib\ai.ahk).
 
 
@@ -877,12 +542,13 @@ Hotkeys /  Keyboard shortcuts
 ; ^+e::MultiSearchEnNl()          ; Ctrl-Shift-e hotkey
 
 
-
 ; Menu, clipboard, reload, Google and desktop search are bound from
 ; settings.ini [Hotkeys] — see lib\hotkeys.ahk.
 
 ; Hotkeys that used to sit inside the menu block
-^+7::Run("C:\Users\mbeijer\AppData\Roaming\talon")   ; Talon config folder
+; A_AppData resolves per user, so this works on any machine - and
+; keeps a Windows profile name out of a shareable script.
+^+7::Run(A_AppData "\talon")   ; Talon config folder
 
 
 ;;^+d::dtSearch()                 ; Ctrl-Shift-d opens and searches in dtSearch
@@ -899,7 +565,5 @@ Hotkeys /  Keyboard shortcuts
 
 ^+9::Send("{U+2018}") 									; Single, curly, opening quotation mark (“)
 ^+0::Send("{U+2019}") 									; Right single closing quotation mark (”)
-
-
 
 
