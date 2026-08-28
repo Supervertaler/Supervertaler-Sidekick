@@ -53,6 +53,18 @@ AI_Providers() {
             "version_header", "",
             "version_value",  "",
             "default_model", "gpt-5"
+        ),
+        ; Gemini names the model in the URL rather than the body, so its entry
+        ; carries a {model} placeholder that the caller fills in.
+        "gemini", Map(
+            "label",        "Gemini",
+            "url",          "https://generativelanguage.googleapis.com/v1beta/"
+                          . "models/{model}:generateContent",
+            "auth_header",  "x-goog-api-key",
+            "auth_prefix",  "",
+            "version_header", "",
+            "version_value",  "",
+            "default_model", "gemini-2.5-flash"
         )
     )
     return providers
@@ -192,7 +204,8 @@ AI_Start(promptText, opts) {
     try {
         req := ComObject("WinHttp.WinHttpRequest.5.1")
         req.SetTimeouts(30000, 30000, 30000, 180000)
-        req.Open("POST", p["url"], true)          ; true = asynchronous
+        ; Gemini puts the model in the path; the others carry it in the body.
+        req.Open("POST", StrReplace(p["url"], "{model}", model), true)          ; true = asynchronous
         req.SetRequestHeader("Content-Type", "application/json; charset=utf-8")
         req.SetRequestHeader(p["auth_header"], p["auth_prefix"] key)
         if (p["version_header"] != "")
@@ -304,6 +317,17 @@ AI_BuildBody(provider, model, promptText, opts, cfg) {
         return Jxon_Dump(payload)
     }
 
+    if (provider = "gemini") {
+        parts := []
+        if (system != "")
+            parts.Push(Map("text", system))
+        parts.Push(Map("text", promptText))
+        payload := Map()
+        payload["contents"] := [Map("parts", parts)]
+        payload["generationConfig"] := Map("maxOutputTokens", maxTokens)
+        return Jxon_Dump(payload)
+    }
+
     ; OpenAI-shaped: the system prompt is a message, not a field.
     messages := []
     if (system != "")
@@ -336,6 +360,18 @@ AI_ExtractText(provider, raw) {
                 out .= (out = "" ? "" : "`n") . GetKey(block, "text", "")
         }
         return out
+    }
+
+    if (provider = "gemini") {
+        try {
+            out := ""
+            for part in data["candidates"][1]["content"]["parts"] {
+                if (part is Map && part.Has("text"))
+                    out .= (out = "" ? "" : "`n") part["text"]
+            }
+            return out
+        } catch
+            return ""
     }
 
     ; OpenAI-shaped

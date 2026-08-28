@@ -72,13 +72,25 @@ QT_Engines() {
         Map("id", "mymemory", "label", "MyMemory",  "group", "mt", "key", ""),
         Map("id", "deepl",    "label", "DeepL",     "group", "mt", "key", "deepl"),
         Map("id", "anthropic","label", "Claude",    "group", "ai", "key", "anthropic"),
-        Map("id", "openai",   "label", "OpenAI",    "group", "ai", "key", "openai")
+        Map("id", "openai",   "label", "OpenAI",    "group", "ai", "key", "openai"),
+        Map("id", "gemini",   "label", "Gemini",    "group", "ai", "key", "gemini")
     ]
     return engines
 }
 
 QT_Setting(key, default) {
     return AI_Ini(SettingsFile(), "QuickTrans", key, default)
+}
+
+; Which model an engine should use.
+;
+; IniRead returns the empty string for a key that is present but blank, not
+; the default — so "anthropic_model=" with nothing after it would otherwise
+; send an empty model name and fail every request. Blank means "the
+; provider's default", which is what someone writing that line intends.
+QT_Model(id, default) {
+    v := Trim(QT_Setting(id "_model", ""))
+    return (v = "") ? default : v
 }
 
 QT_ActiveEngines() {
@@ -136,13 +148,14 @@ QT_BuildRequest(engine, text, srcCode, tgtCode) {
 
     providers := AI_Providers()
     p := providers[id]
-    r["url"] := p["url"]
+    ; Per-engine model override lives in [QuickTrans], e.g. openai_model=.
+    model := QT_Model(id, p["default_model"])
+    r["url"] := StrReplace(p["url"], "{model}", model)
     r["headers"]["Content-Type"] := "application/json; charset=utf-8"
     r["headers"][p["auth_header"]] := p["auth_prefix"] key
     if (p["version_header"] != "")
         r["headers"][p["version_header"]] := p["version_value"]
 
-    model := QT_Setting(id "_model", p["default_model"])
     cfg := Map("maxtokens", QT_Setting("MaxTokens", "1000"),
                "effort", QT_Setting("Effort", "low"))
     r["body"] := AI_BuildBody(id, model, prompt, Map(), cfg)
