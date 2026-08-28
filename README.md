@@ -20,6 +20,7 @@ no runtime, no install step.
 |---|---|
 | 🪟 **One window** | `` ` `` opens the clipboard and the menu side by side. Arrows cross between them, folders open and close, `Alt+1`–`9` jumps straight to a section, `Ctrl+↑`/`↓` steps between them, and typing filters both panes at once. |
 | ⌘ **The palette** | `Ctrl+Alt+Space`. One search box over *everything* — clipboard history, snippets, searches, AI prompts, bookmarks and conversions at once. Type a few letters, press Enter. The menu is still there for browsing. |
+| 🌐 **QuickTrans** | `Ctrl+Alt+T`. Translate the selection with several engines at once — MyMemory, DeepL, Claude, OpenAI — shown side by side. Press `1`–`9` to insert one. MyMemory needs no API key, so it works out of the box. |
 | 🔍 **Web searches** | Select a term, pick a source. IATE, Juremy, JurLex, Van Dale, Linguee, Proz, Reverso, BabelNet, Wikipedia, Wiktionary, Google Patents and more — 25 out of the box. Multi-search fires a whole batch at once. |
 | 🤖 **AI actions** | Run any prompt over the selection: translate, proofread, rephrase, summarise, expand, localise. Provider-agnostic — Claude by default, OpenAI if you prefer — and non-blocking, so the rest of Beijer.bot keeps working while a request is in flight. |
 | 📋 **Snippet library** | Boilerplate, standard replies, special characters, regex patterns, dictionary citations — inserted at the cursor. |
@@ -127,6 +128,7 @@ Optional per-entry overrides: `system`, `model`, `provider`, `effort`,
 Beijer.bot.ahk        hotkeys, text conversions, local searches
 lib/
   mainwindow.ahk      the backtick window (clipboard + menu)
+  quicktrans.ahk      multi-engine translation of the selection
   palette.ahk         the search-everything window
   menu_builder.ahk    builds the menu from data
   ai.ahk              provider-agnostic AI requests

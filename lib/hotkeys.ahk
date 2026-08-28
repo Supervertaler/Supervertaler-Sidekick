@@ -16,12 +16,13 @@
 global HK_Registered := Map()    ; binding string -> true, for what is live
 
 ; Display order in the editor, and the order things register in.
-HK_ORDER := ["Palette", "Menu", "MenuCentred", "Clipboard", "LibraryEditor",
+HK_ORDER := ["Palette", "QuickTrans", "Menu", "MenuCentred", "Clipboard", "LibraryEditor",
              "GoogleSearch", "DesktopSearch", "Reload"]
 
 HK_Labels() {
     static labels := Map(
         "Palette",       "Open the palette (search everything)",
+        "QuickTrans",    "Translate the selection (QuickTrans)",
         "Menu",          "Open Text Commander (clipboard + menu)",
         "MenuCentred",   "Classic popup menu",
         "Clipboard",     "Clipboard history",
@@ -36,6 +37,7 @@ HK_Labels() {
 HK_Actions() {
     static actions := Map(
         "Palette",       () => PAL_Show(),
+        "QuickTrans",    () => QT_Show(),
         "Menu",          () => MW_Show(),
         "MenuCentred",   () => ShowMainMenu(132, 164),
         "Clipboard",     () => CB_Show(),
@@ -51,6 +53,7 @@ HK_Actions() {
 HK_Defaults() {
     static defaults := Map(
         "Palette",       "^!Space",
+        "QuickTrans",    "^!t",
         "Menu",          "``",
         "MenuCentred",   "^``",
         "Clipboard",     "^!c",

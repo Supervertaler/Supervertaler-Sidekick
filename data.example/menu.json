@@ -221,6 +221,11 @@
       "barbreak": true
     },
     {
+      "kind": "action",
+      "label": "• Translate the selection…  (Ctrl+Alt+T)",
+      "func": "OpenQuickTrans"
+    },
+    {
       "kind": "ai",
       "label": "• Ask a question (any language)",
       "prompt": "Craft a response to any given message, regardless of the language it's in. The response should adhere to the original sender's tone, style, formatting, and cultural or regional context. Maintain the same level of formality and emotional tone as the original message. Responses may be of any length, provided they effectively communicate the response to the original sender:"
