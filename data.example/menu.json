@@ -12,6 +12,11 @@
     },
     {
       "kind": "action",
+      "label": "Search everything…  (Ctrl+Alt+Space)",
+      "func": "OpenPalette"
+    },
+    {
+      "kind": "action",
       "label": "Clipboard history…  (Ctrl+Alt+C)",
       "func": "OpenClipboardManager"
     },

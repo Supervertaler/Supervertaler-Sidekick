@@ -212,6 +212,51 @@ HandlerAction(name, arg) {
     return (*) => RunAction(name, arg)
 }
 
+; ---------------------------------------------------------------------------
+; Run one entry, whatever surface asked for it.
+;
+; The menu copies the selection at the moment you click. The palette copies it
+; when it opens, because by the time you have typed a query the focus has
+; moved. So a caller that already has the text passes it in; anything else
+; leaves `sel` empty and the entry grabs it live.
+; ---------------------------------------------------------------------------
+ExecuteEntry(item, sel := "") {
+    kind := GetKey(item, "kind", "")
+
+    switch kind {
+        case "text":
+            SendText(GetKey(item, "value", ""))
+
+        case "keys":
+            SendInput(GetKey(item, "value", ""))
+
+        case "url", "run":
+            OpenTarget(GetKey(item, "value", ""))
+
+        case "search":
+            RunSearch(GetKey(item, "url", ""), GetKey(item, "browser", ""), sel)
+
+        case "ai":
+            RunAIEntry(item, sel)
+
+        case "action":
+            RunAction(GetKey(item, "func", ""), GetKey(item, "arg", ""))
+    }
+}
+
+RunAIEntry(item, sel := "") {
+    opts := Map()
+    for field in ["system", "model", "provider", "effort", "maxtokens",
+                  "selection"] {
+        v := GetKey(item, field, "")
+        if (v != "")
+            opts[field] := v
+    }
+    if (sel != "")
+        opts["text"] := sel
+    AI_Ask(GetKey(item, "prompt", ""), opts)
+}
+
 ; AI entries carry their prompt plus optional per-entry overrides (system,
 ; model, provider, effort), so the whole entry is handed to AI_Ask().
 HandlerAI(item) {
@@ -236,11 +281,13 @@ OpenTarget(target) {
     }
 }
 
-RunSearch(urlTemplate, browser := "") {
+RunSearch(urlTemplate, browser := "", sel := "") {
     if (urlTemplate = "")
         return
 
-    query := Trim(BB_CopySelection())
+    ; A caller that already captured the selection passes it in; the menu
+    ; does not, and grabs it at click time.
+    query := Trim(sel != "" ? sel : BB_CopySelection())
     if (query = "") {
         MsgBox("Select some text first.", "Beijer.bot", "Icon! T2")
         return

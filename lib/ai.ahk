@@ -124,7 +124,12 @@ AI_Ask(promptText, opts := "") {
 
     selection := ""
     if (GetKey(opts, "selection", "yes") != "no") {
-        selection := BB_CopySelection(2)
+        ; The palette captures the selection when it opens, since by the time
+        ; the user has typed a query the focus has long since moved. It hands
+        ; the text over in opts["text"] rather than making us copy again.
+        selection := GetKey(opts, "text", "")
+        if (selection = "")
+            selection := BB_CopySelection(2)
         if (selection = "") {
             MsgBox("Select some text first.", "Beijer.bot AI", "Icon! T2")
             return

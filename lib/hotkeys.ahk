@@ -16,11 +16,12 @@
 global HK_Registered := Map()    ; binding string -> true, for what is live
 
 ; Display order in the editor, and the order things register in.
-HK_ORDER := ["Menu", "MenuCentred", "Clipboard", "LibraryEditor",
+HK_ORDER := ["Palette", "Menu", "MenuCentred", "Clipboard", "LibraryEditor",
              "GoogleSearch", "DesktopSearch", "Reload"]
 
 HK_Labels() {
     static labels := Map(
+        "Palette",       "Open the palette (search everything)",
         "Menu",          "Open the menu",
         "MenuCentred",   "Open the menu (centred)",
         "Clipboard",     "Clipboard history",
@@ -34,6 +35,7 @@ HK_Labels() {
 
 HK_Actions() {
     static actions := Map(
+        "Palette",       () => PAL_Show(),
         "Menu",          () => ShowMainMenu(132, 164),
         "MenuCentred",   () => ShowMainMenu(),
         "Clipboard",     () => CB_Show(),
@@ -48,6 +50,7 @@ HK_Actions() {
 ; A backtick has to be written as two here — it is AutoHotkey's escape char.
 HK_Defaults() {
     static defaults := Map(
+        "Palette",       "^!Space",
         "Menu",          "``",
         "MenuCentred",   "^``",
         "Clipboard",     "^!c",
