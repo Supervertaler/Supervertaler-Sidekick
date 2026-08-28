@@ -23,6 +23,7 @@ if !A_IsAdmin {
 #Include "lib\ai.ahk"
 #Include "lib\clipboard.ahk"
 #Include "lib\palette.ahk"
+#Include "lib\mainwindow.ahk"
 #Include "lib\hotkeys.ahk"
 #Include "lib\editor.ahk"
 Persistent
@@ -114,6 +115,7 @@ RegisterBuiltInActions() {
     RegisterAction("OpenHotkeyEditor", OpenHotkeyEditor)
     RegisterAction("OpenClipboardManager", CB_Show)
     RegisterAction("OpenPalette", PAL_Show)
+    RegisterAction("OpenMainWindow", MW_Show)
     RegisterAction("ReloadBeijerBot", (*) => Reload())
     RegisterAction("ToggleClipboardCapture", CB_ToggleCapture)
     RegisterAction("BoldHtml", BoldHtml)

@@ -22,8 +22,8 @@ HK_ORDER := ["Palette", "Menu", "MenuCentred", "Clipboard", "LibraryEditor",
 HK_Labels() {
     static labels := Map(
         "Palette",       "Open the palette (search everything)",
-        "Menu",          "Open the menu",
-        "MenuCentred",   "Open the menu (centred)",
+        "Menu",          "Open Beijer.bot (clipboard + menu)",
+        "MenuCentred",   "Classic popup menu",
         "Clipboard",     "Clipboard history",
         "LibraryEditor", "Library Editor",
         "GoogleSearch",  "Google the selection",
@@ -36,8 +36,8 @@ HK_Labels() {
 HK_Actions() {
     static actions := Map(
         "Palette",       () => PAL_Show(),
-        "Menu",          () => ShowMainMenu(132, 164),
-        "MenuCentred",   () => ShowMainMenu(),
+        "Menu",          () => MW_Show(),
+        "MenuCentred",   () => ShowMainMenu(132, 164),
         "Clipboard",     () => CB_Show(),
         "LibraryEditor", () => OpenLibraryEditor(),
         "GoogleSearch",  () => RunAction("GoogleSearch"),

@@ -386,7 +386,12 @@ CB_ItemForRow(row) {
 ; ---------------------------------------------------------------------------
 CB_CustomDraw(ctrl, lParam) {
     global CB_Shown
+    return BB_DrawPastedRows(lParam, CB_Shown)
+}
 
+; Shared by the standalone clipboard window and the clipboard pane of the
+; main window, which display different row sets from the same history.
+BB_DrawPastedRows(lParam, rows) {
     static CDDS_PREPAINT          := 0x00000001
     static CDDS_ITEMPREPAINT      := 0x00010001
     static CDRF_NOTIFYITEMDRAW    := 0x00000020
@@ -403,8 +408,8 @@ CB_CustomDraw(ctrl, lParam) {
 
     if (stage = CDDS_ITEMPREPAINT) {
         row := NumGet(lParam, 56, "UPtr") + 1        ; dwItemSpec is 0-based
-        if (row >= 1 && row <= CB_Shown.Length) {
-            if (GetKey(CB_Shown[row], "pasted", false)) {
+        if (row >= 1 && row <= rows.Length) {
+            if (GetKey(rows[row], "pasted", false)) {
                 NumPut("UInt", GREY, lParam, 80)     ; clrText
                 return CDRF_NEWFONT
             }
