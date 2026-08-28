@@ -131,7 +131,8 @@ MW_CustomDraw(ctrl, lParam) {
 ; Menu pane
 ; ---------------------------------------------------------------------------
 MW_RefreshTree() {
-    global MW_Tree, MW_Nodes, MW_Sections, MW_Search, BeijerBotData
+    global MW_Tree, MW_Nodes, MW_Sections, MW_Rebuilding
+    global MW_Search, BeijerBotData
 
     needle := ""
     try needle := Trim(MW_Search.Value)
