@@ -245,7 +245,7 @@ QT_Poll() {
             raw := AI_ResponseText(req)
             if (status != 200) {
                 job["state"] := "error"
-                job["text"] := "HTTP " status
+                job["text"] := QT_StatusText(status)
             } else {
                 out := QT_ParseResponse(job["engine"], raw)
                 job["state"] := (out != "") ? "done" : "error"
@@ -265,6 +265,23 @@ QT_Poll() {
 
     if (QT_OnUpdate != "") {
         try QT_OnUpdate.Call(pending = 0)
+    }
+}
+
+; What went wrong, in words. A bare "HTTP 401" tells you a number; "key
+; rejected" tells you where to go and fix it.
+QT_StatusText(status) {
+    switch status {
+        case 400: return "bad request"
+        case 401: return "key rejected"
+        case 403: return "access denied"
+        case 404: return "not found"
+        case 413: return "text too long"
+        case 429: return "rate limited"
+        default:
+            if (status >= 500)
+                return "engine unavailable (" status ")"
+            return "HTTP " status
     }
 }
 
