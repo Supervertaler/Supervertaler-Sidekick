@@ -1,4 +1,4 @@
-#Requires AutoHotkey v2.0
+﻿#Requires AutoHotkey v2.0
 ; ===========================================================================
 ; lib/ai.ahk — provider-agnostic AI requests.
 ;
@@ -34,40 +34,98 @@ global AI_BtnInsert   := ""
 ; would be harder to read than two small builder functions, so the shape
 ; lives in AI_BuildBody() / AI_ExtractText() keyed on the provider name.
 ; ---------------------------------------------------------------------------
+global AI_ProviderCache := ""
+
+; Every OpenAI-compatible service — Mistral, DeepSeek, OpenRouter, Ollama and
+; whatever a user points the custom entry at — differs only in where it lives.
+; One shape, several base URLs.
+AI_OpenAIShaped(label, base, defaultModel, needsKey := true) {
+    base := RTrim(Trim(base), "/")
+    return Map(
+        "label",          label,
+        "base",           base,
+        "url",            base "/chat/completions",
+        "models_url",     base "/models",
+        "auth_header",    "Authorization",
+        "auth_prefix",    "Bearer ",
+        "version_header", "",
+        "version_value",  "",
+        "default_model",  defaultModel,
+        "needs_key",      needsKey
+    )
+}
+
 AI_Providers() {
-    static providers := Map(
+    global AI_ProviderCache
+    if (AI_ProviderCache != "")
+        return AI_ProviderCache
+
+    ini := SettingsFile()
+
+    ; Ollama and the custom entry are wherever the user put them. Ollama has
+    ; a conventional home, so it gets a default; a custom endpoint does not,
+    ; and stays switched off until someone fills one in.
+    ollama := Trim(AI_Ini(ini, "QuickTrans", "ollama_url", ""))
+    if (ollama = "")
+        ollama := "http://localhost:11434/v1"
+    custom := Trim(AI_Ini(ini, "QuickTrans", "custom_url", ""))
+
+    providers := Map(
         "anthropic", Map(
             "label",        "Claude (Anthropic)",
+            "base",         "https://api.anthropic.com/v1",
             "url",          "https://api.anthropic.com/v1/messages",
+            "models_url",   "https://api.anthropic.com/v1/models",
             "auth_header",  "x-api-key",
             "auth_prefix",  "",
             "version_header", "anthropic-version",
             "version_value",  "2023-06-01",
-            "default_model", "claude-opus-5"
+            "default_model", "claude-opus-5",
+            "needs_key",    true
         ),
-        "openai", Map(
-            "label",        "OpenAI",
-            "url",          "https://api.openai.com/v1/chat/completions",
-            "auth_header",  "Authorization",
-            "auth_prefix",  "Bearer ",
-            "version_header", "",
-            "version_value",  "",
-            "default_model", "gpt-5"
-        ),
+        "openai", AI_OpenAIShaped("OpenAI",
+                                  "https://api.openai.com/v1", "gpt-5"),
         ; Gemini names the model in the URL rather than the body, so its entry
         ; carries a {model} placeholder that the caller fills in.
         "gemini", Map(
             "label",        "Gemini",
+            "base",         "https://generativelanguage.googleapis.com/v1beta",
             "url",          "https://generativelanguage.googleapis.com/v1beta/"
                           . "models/{model}:generateContent",
+            "models_url",   "https://generativelanguage.googleapis.com/v1beta/"
+                          . "models",
             "auth_header",  "x-goog-api-key",
             "auth_prefix",  "",
             "version_header", "",
             "version_value",  "",
-            "default_model", "gemini-2.5-flash"
-        )
+            "default_model", "gemini-2.5-flash",
+            "needs_key",    true
+        ),
+        "mistral",    AI_OpenAIShaped("Mistral",
+                                      "https://api.mistral.ai/v1",
+                                      "mistral-small-latest"),
+        "deepseek",   AI_OpenAIShaped("DeepSeek",
+                                      "https://api.deepseek.com/v1",
+                                      "deepseek-chat"),
+        "openrouter", AI_OpenAIShaped("OpenRouter",
+                                      "https://openrouter.ai/api/v1",
+                                      "anthropic/claude-sonnet-5"),
+        ; Local models need no key, so the endpoint is the only gate.
+        "ollama",     AI_OpenAIShaped("Ollama (local)", ollama,
+                                      "llama3.1", false),
+        "custom",     AI_OpenAIShaped("Custom (OpenAI-compatible)", custom,
+                                      "", false)
     )
+
+    AI_ProviderCache := providers
     return providers
+}
+
+; Called after settings change, so a new endpoint takes effect without a
+; reload.
+AI_ProvidersReload() {
+    global AI_ProviderCache
+    AI_ProviderCache := ""
 }
 
 SettingsFile() {

@@ -1,4 +1,4 @@
-/*
+﻿/*
 ====================================================
 Information:
 
@@ -27,6 +27,7 @@ if !A_IsAdmin {
 #Include "lib\quicktrans.ahk"
 #Include "lib\hotkeys.ahk"
 #Include "lib\editor.ahk"
+#Include "lib\providers.ahk"
 Persistent
 TraySetIcon(A_ScriptDir "\B.ico")
 
@@ -118,7 +119,7 @@ RegisterBuiltInActions() {
     RegisterAction("OpenPalette", PAL_Show)
     RegisterAction("OpenMainWindow", MW_Show)
     RegisterAction("OpenQuickTrans", MW_ShowQuickTrans)
-    RegisterAction("OpenModelList", OpenModelList)
+    RegisterAction("OpenProviderSettings", OpenProviderSettings)
     RegisterAction("ReloadBeijerBot", (*) => Reload())
     RegisterAction("ToggleClipboardCapture", CB_ToggleCapture)
     RegisterAction("BoldHtml", BoldHtml)

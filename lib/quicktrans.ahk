@@ -1,4 +1,4 @@
-#Requires AutoHotkey v2.0
+﻿#Requires AutoHotkey v2.0
 ; ===========================================================================
 ; lib/quicktrans.ahk — the translation engines.
 ;
@@ -70,10 +70,24 @@ QT_LangName(code) {
 QT_Engines() {
     static engines := [
         Map("id", "mymemory", "label", "MyMemory",  "group", "mt", "key", ""),
+        Map("id", "google",   "label", "Google",    "group", "mt", "key", "google"),
+        Map("id", "microsoft","label", "Microsoft", "group", "mt", "key", "microsoft"),
+        Map("id", "modernmt", "label", "ModernMT",  "group", "mt", "key", "modernmt"),
         Map("id", "deepl",    "label", "DeepL",     "group", "mt", "key", "deepl"),
         Map("id", "anthropic","label", "Claude",    "group", "ai", "key", "anthropic"),
         Map("id", "openai",   "label", "OpenAI",    "group", "ai", "key", "openai"),
-        Map("id", "gemini",   "label", "Gemini",    "group", "ai", "key", "gemini")
+        Map("id", "gemini",   "label", "Gemini",    "group", "ai", "key", "gemini"),
+        Map("id", "mistral",  "label", "Mistral",   "group", "ai", "key", "mistral"),
+        Map("id", "deepseek", "label", "DeepSeek",  "group", "ai", "key", "deepseek"),
+        Map("id", "openrouter", "label", "OpenRouter", "group", "ai", "key", "openrouter"),
+        ; Ollama and the custom endpoint authenticate with nothing, so there
+        ; is no missing key to gate them and they would otherwise be asked on
+        ; every translation. Both start switched off and are turned on in
+        ; Settings once there is actually something listening.
+        Map("id", "ollama", "label", "Ollama", "group", "ai", "key", "",
+            "default", "0"),
+        Map("id", "custom", "label", "Custom", "group", "ai", "key", "",
+            "default", "0")
     ]
     return engines
 }
@@ -93,13 +107,26 @@ QT_Model(id, default) {
     return (v = "") ? default : v
 }
 
+; Engines are on unless said otherwise; the keyless ones start off, since
+; nothing else would stop them being asked.
+QT_EngineDefault(e) {
+    return e.Has("default") ? e["default"] : "1"
+}
+
 QT_ActiveEngines() {
     out := []
     for e in QT_Engines() {
-        if (QT_Setting(e["id"], "1") = "0")
+        if (QT_Setting(e["id"], QT_EngineDefault(e)) = "0")
             continue
         if (e["key"] != "" && Trim(AI_Ini(SettingsFile(), "Keys", e["key"], "")) = "")
             continue
+        ; Ollama and the custom endpoint carry no key, so an empty base URL
+        ; is what tells us they were never set up. Without this they would be
+        ; queried on every translation and fail every time.
+        if (e["id"] = "ollama" || e["id"] = "custom") {
+            if (AI_Providers()[e["id"]]["base"] = "")
+                continue
+        }
         out.Push(e)
     }
     return out
@@ -110,9 +137,11 @@ QT_ActiveEngines() {
 ; ---------------------------------------------------------------------------
 QT_BuildRequest(engine, text, srcCode, tgtCode) {
     id  := engine["id"]
-    key := engine["key"] != ""
-         ? Trim(AI_Ini(SettingsFile(), "Keys", engine["key"], ""))
-         : ""
+    ; Engines with no required key can still take an optional one — a custom
+    ; endpoint behind a gateway, say — so look one up under the engine's own
+    ; name and simply carry on if there is none.
+    key := Trim(AI_Ini(SettingsFile(), "Keys",
+                       engine["key"] != "" ? engine["key"] : id, ""))
 
     r := Map("method", "POST", "headers", Map(), "body", "")
 
@@ -121,6 +150,48 @@ QT_BuildRequest(engine, text, srcCode, tgtCode) {
         r["url"] := "https://api.mymemory.translated.net/get?q="
                   . BB_UriEncode(text) "&langpair="
                   . srcCode "|" tgtCode
+        return r
+    }
+
+    if (id = "google") {
+        ; Google Cloud Translation v2. The key rides in the query string
+        ; because that is the only place this endpoint accepts one.
+        r["url"] := "https://translation.googleapis.com/language/translate/v2"
+                  . "?key=" BB_UriEncode(key)
+        r["headers"]["Content-Type"] := "application/json; charset=utf-8"
+        body := Map()
+        body["q"] := text
+        body["source"] := srcCode
+        body["target"] := tgtCode
+        body["format"] := "text"
+        r["body"] := Jxon_Dump(body)
+        return r
+    }
+
+    if (id = "microsoft") {
+        ; Azure Translator wants the resource's region alongside the key;
+        ; "global" resources are the common case and the default.
+        region := Trim(QT_Setting("microsoft_region", ""))
+        if (region = "")
+            region := "global"
+        r["url"] := "https://api.cognitive.microsofttranslator.com/translate"
+                  . "?api-version=3.0&from=" srcCode "&to=" tgtCode
+        r["headers"]["Ocp-Apim-Subscription-Key"] := key
+        r["headers"]["Ocp-Apim-Subscription-Region"] := region
+        r["headers"]["Content-Type"] := "application/json; charset=utf-8"
+        r["body"] := Jxon_Dump([Map("text", text)])
+        return r
+    }
+
+    if (id = "modernmt") {
+        r["url"] := "https://api.modernmt.com/translate"
+        r["headers"]["MMT-ApiKey"] := key
+        r["headers"]["Content-Type"] := "application/json; charset=utf-8"
+        body := Map()
+        body["q"] := text
+        body["source"] := srcCode
+        body["target"] := tgtCode
+        r["body"] := Jxon_Dump(body)
         return r
     }
 
@@ -150,15 +221,36 @@ QT_BuildRequest(engine, text, srcCode, tgtCode) {
     p := providers[id]
     ; Per-engine model override lives in [QuickTrans], e.g. openai_model=.
     model := QT_Model(id, p["default_model"])
+    ; A custom endpoint has no default worth guessing at, so say so rather
+    ; than sending an empty model name and getting a puzzling error back.
+    if (model = "")
+        throw Error("no model set — choose one under Settings, AI providers")
     r["url"] := StrReplace(p["url"], "{model}", model)
     r["headers"]["Content-Type"] := "application/json; charset=utf-8"
-    r["headers"][p["auth_header"]] := p["auth_prefix"] key
+    ; A local Ollama has no key; sending "Bearer " with nothing after it is
+    ; worse than sending no header at all.
+    if (key != "")
+        r["headers"][p["auth_header"]] := p["auth_prefix"] key
     if (p["version_header"] != "")
         r["headers"][p["version_header"]] := p["version_value"]
 
     cfg := Map("maxtokens", QT_Setting("MaxTokens", "1000"),
                "effort", QT_Setting("Effort", "low"))
-    r["body"] := AI_BuildBody(id, model, prompt, Map(), cfg)
+
+    ; A custom endpoint is usually a plain MT proxy rather than an
+    ; instruction-following model: it translates whatever you send it, so a
+    ; wrapped prompt comes back with the instructions translated too. Send
+    ; the bare text and put the direction in the system message instead.
+    ; Turn this off for an endpoint that really is an LLM.
+    opts := Map()
+    if (id = "custom" && QT_Setting("custom_raw", "1") != "0") {
+        opts["system"] := "Translate from " QT_LangName(srcCode) " into "
+                        . QT_LangName(tgtCode)
+                        . ". Output only the translated text."
+        prompt := text
+    }
+
+    r["body"] := AI_BuildBody(id, model, prompt, opts, cfg)
     return r
 }
 
@@ -182,7 +274,35 @@ QT_ParseResponse(engine, raw) {
             return ""
     }
 
+    if (id = "google") {
+        ; Google returns the translation HTML-escaped whatever format you
+        ; ask for, so an apostrophe comes back as &#39;.
+        try return QT_HtmlUnescape(Trim(
+            data["data"]["translations"][1]["translatedText"]))
+        catch
+            return ""
+    }
+
+    if (id = "microsoft") {
+        try return Trim(data[1]["translations"][1]["text"])
+        catch
+            return ""
+    }
+
+    if (id = "modernmt") {
+        try return Trim(data["data"]["translation"])
+        catch
+            return ""
+    }
+
     return Trim(AI_ExtractText(id, raw))
+}
+
+QT_HtmlUnescape(t) {
+    for pair in [["&#39;", "'"], ["&quot;", '"'], ["&lt;", "<"],
+                 ["&gt;", ">"], ["&nbsp;", " "], ["&amp;", "&"]]
+        t := StrReplace(t, pair[1], pair[2])
+    return t
 }
 
 ; ---------------------------------------------------------------------------
@@ -191,17 +311,32 @@ QT_ParseResponse(engine, raw) {
 ; Returns immediately. QT_Jobs fills in as replies land; QT_OnUpdate is
 ; called after each poll so the view can redraw.
 ; ---------------------------------------------------------------------------
-QT_Start(text, srcCode, tgtCode) {
-    global QT_Jobs, QT_Running
+QT_Start(text, srcCode, tgtCode, groups := "") {
+    global QT_Jobs
 
     QT_Abort()
-
-    engines := QT_ActiveEngines()
     QT_Jobs := []
-    if (engines.Length = 0)
-        return 0
+    return QT_Launch(text, srcCode, tgtCode, groups)
+}
 
-    for e in engines {
+; Add engines to a run that has already started. This is what makes holding
+; the LLMs back possible: the machine-translation engines answer immediately
+; and for nothing, and the paid ones only join in when asked.
+QT_StartMore(text, srcCode, tgtCode, groups) {
+    return QT_Launch(text, srcCode, tgtCode, groups)
+}
+
+; groups is "" for every engine, or an array of group names ("mt", "ai").
+QT_Launch(text, srcCode, tgtCode, groups) {
+    global QT_Jobs, QT_Running
+
+    added := 0
+    for e in QT_ActiveEngines() {
+        if (groups != "" && !QT_InGroups(e["group"], groups))
+            continue
+        if QT_HasJob(e["id"])
+            continue
+
         job := Map("engine", e, "state", "pending", "text", "", "req", "")
         try {
             spec := QT_BuildRequest(e, text, srcCode, tgtCode)
@@ -214,14 +349,47 @@ QT_Start(text, srcCode, tgtCode) {
             job["req"] := req
         } catch Error as err {
             job["state"] := "error"
-            job["text"] := err.Message
+            job["text"] := QT_ErrorText(err)
         }
         QT_Jobs.Push(job)
+        added++
     }
 
-    QT_Running := true
-    SetTimer(QT_Poll, 120)
-    return QT_Jobs.Length
+    if (added > 0) {
+        QT_Running := true
+        SetTimer(QT_Poll, 120)
+    }
+    return added
+}
+
+QT_InGroups(group, groups) {
+    for g in groups {
+        if (g = group)
+            return true
+    }
+    return false
+}
+
+QT_HasJob(id) {
+    global QT_Jobs
+    for job in QT_Jobs {
+        if (job["engine"]["id"] = id)
+            return true
+    }
+    return false
+}
+
+; How many engines a run would still have to ask. Lets a caller offer "fetch
+; the LLMs" only when there is something left to fetch.
+QT_PendingCount(groups) {
+    n := 0
+    for e in QT_ActiveEngines() {
+        if (groups != "" && !QT_InGroups(e["group"], groups))
+            continue
+        if !QT_HasJob(e["id"])
+            n++
+    }
+    return n
 }
 
 QT_Poll() {
@@ -244,7 +412,7 @@ QT_Poll() {
             done := req.WaitForResponse(0)
         catch Error as err {
             job["state"] := "error"
-            job["text"] := err.Message
+            job["text"] := QT_ErrorText(err)
             continue
         }
 
@@ -266,7 +434,7 @@ QT_Poll() {
             }
         } catch Error as err {
             job["state"] := "error"
-            job["text"] := err.Message
+            job["text"] := QT_ErrorText(err)
         }
         job["req"] := ""
     }
@@ -279,6 +447,23 @@ QT_Poll() {
     if (QT_OnUpdate != "") {
         try QT_OnUpdate.Call(pending = 0)
     }
+}
+
+; The same idea for the errors WinHttp raises before there is any HTTP status
+; at all. Its own wording runs to three lines of COM boilerplate, which is
+; how a local Ollama that simply is not running ends up looking like a crash.
+QT_ErrorText(err) {
+    msg := err.Message
+    for pair in [["0x80072EFD", "nothing listening at that address"],
+                 ["0x80072EE7", "server not found"],
+                 ["0x80072EE2", "timed out"],
+                 ["0x80072F7D", "secure connection failed"],
+                 ["0x80072F0D", "certificate rejected"]] {
+        if InStr(msg, pair[1])
+            return pair[2]
+    }
+    ; Anything unrecognised: first line only, so one row stays one row.
+    return Trim(StrSplit(StrReplace(msg, "`r`n", "`n"), "`n")[1])
 }
 
 ; What went wrong, in words. A bare "HTTP 401" tells you a number; "key
@@ -332,154 +517,8 @@ QT_Ordered() {
 ; model availability differs by account and tier.
 ; ===========================================================================
 QT_ModelEndpoint(id) {
-    switch id {
-        case "anthropic": return "https://api.anthropic.com/v1/models"
-        case "openai":    return "https://api.openai.com/v1/models"
-        case "gemini":
-            return "https://generativelanguage.googleapis.com/v1beta/models"
-    }
-    return ""
-}
-
-; Returns a Map: "ok" (bool), "models" (array of ids), "error" (text).
-QT_FetchModels(id) {
-    out := Map("ok", false, "models", [], "error", "")
-
-    url := QT_ModelEndpoint(id)
-    if (url = "") {
-        out["error"] := "no model list for this engine"
-        return out
-    }
-
-    key := Trim(AI_Ini(SettingsFile(), "Keys", id, ""))
-    if (key = "") {
-        out["error"] := "no API key set"
-        return out
-    }
-
     providers := AI_Providers()
-    p := providers[id]
-
-    try {
-        req := ComObject("WinHttp.WinHttpRequest.5.1")
-        req.SetTimeouts(10000, 10000, 10000, 25000)
-        req.Open("GET", url, true)
-        req.SetRequestHeader(p["auth_header"], p["auth_prefix"] key)
-        if (p["version_header"] != "")
-            req.SetRequestHeader(p["version_header"], p["version_value"])
-        req.Send()
-        req.WaitForResponse(25)
-
-        if (req.Status != 200) {
-            out["error"] := QT_StatusText(req.Status)
-            return out
-        }
-        raw := AI_ResponseText(req)
-        data := Jxon_Load(&raw)
-    } catch Error as err {
-        out["error"] := err.Message
-        return out
-    }
-
-    ids := []
-    try {
-        if (id = "gemini") {
-            ; Gemini names them "models/x" and lists what each one can do.
-            for m in data["models"] {
-                name := StrReplace(m["name"], "models/", "")
-                usable := !m.Has("supportedGenerationMethods")
-                if !usable {
-                    for meth in m["supportedGenerationMethods"] {
-                        if (meth = "generateContent")
-                            usable := true
-                    }
-                }
-                if usable
-                    ids.Push(name)
-            }
-        } else {
-            for m in data["data"] {
-                mid := m["id"]
-                ; OpenAI lists embeddings, audio and image models too; only
-                ; the chat families are any use here.
-                if (id = "openai" && !RegExMatch(mid, "^(gpt|o[0-9]|chatgpt)"))
-                    continue
-                ids.Push(mid)
-            }
-        }
-    } catch Error as err {
-        out["error"] := "unexpected reply: " err.Message
-        return out
-    }
-
-    out["ok"] := true
-    out["models"] := ids
-    return out
-}
-
-; ---------------------------------------------------------------------------
-global QTM_Gui := ""
-
-OpenModelList(*) {
-    global QTM_Gui
-
-    if (QTM_Gui != "") {
-        try QTM_Gui.Destroy()
-        QTM_Gui := ""
-    }
-
-    QTM_Gui := Gui("+Resize +MinSize520x420", "Text Commander — Available models")
-    QTM_Gui.SetFont("s9", "Segoe UI")
-    QTM_Gui.OnEvent("Close", (*) => QTM_Close())
-    QTM_Gui.OnEvent("Escape", (*) => QTM_Close())
-
-    QTM_Gui.Add("Text", "xm ym w620",
-                "Models your API keys can actually use. Put one in "
-                "settings.ini under [QuickTrans], e.g. openai_model=gpt-5-mini")
-
-    lv := QTM_Gui.Add("ListView", "xm y+8 w620 h420 -Multi",
-                      ["Engine", "Model", "In use"])
-    status := QTM_Gui.Add("Text", "xm y+8 w620", "Asking each provider…")
-    QTM_Gui.Show("w660 h520")
-
-    providers := AI_Providers()
-    total := 0
-    for id, p in providers {
-        r := QT_FetchModels(id)
-        current := QT_Model(id, p["default_model"])
-
-        if !r["ok"] {
-            lv.Add(, p["label"], "(" r["error"] ")", "")
-            continue
-        }
-        for m in r["models"] {
-            lv.Add(, p["label"], m, (m = current) ? "yes" : "")
-            total++
-        }
-    }
-
-    lv.ModifyCol(1, 130)
-    lv.ModifyCol(2, 330)
-    lv.ModifyCol(3, 60)
-    status.Value := total " models available."
-             . "  Double-click one to copy its name."
-
-    lv.OnEvent("DoubleClick", QTM_Copy)
-
-    QTM_Copy(ctrl, row) {
-        if (row = 0)
-            return
-        name := ctrl.GetText(row, 2)
-        if (SubStr(name, 1, 1) = "(")
-            return
-        A_Clipboard := name
-        status.Value := "Copied: " name
-    }
-}
-
-QTM_Close() {
-    global QTM_Gui
-    try QTM_Gui.Destroy()
-    QTM_Gui := ""
-    return true
+    if !providers.Has(id)
+        return ""
+    return providers[id]["base"] = "" ? "" : providers[id]["models_url"]
 }

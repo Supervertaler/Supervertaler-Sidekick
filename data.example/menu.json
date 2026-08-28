@@ -571,8 +571,8 @@
         },
         {
           "kind": "action",
-          "label": "Available AI models…",
-          "func": "OpenModelList"
+          "label": "AI providers & keys…",
+          "func": "OpenProviderSettings"
         },
         {
           "kind": "separator"

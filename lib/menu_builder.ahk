@@ -1,4 +1,4 @@
-#Requires AutoHotkey v2.0
+﻿#Requires AutoHotkey v2.0
 ; ===========================================================================
 ; lib/menu_builder.ahk — turn data/menu.json into a live AutoHotkey menu.
 ;
@@ -331,6 +331,18 @@ RunAction(name, arg := "") {
 ; Copy whatever is selected in the foreground window and return it.
 ; Returns "" if nothing could be copied.
 BB_CopySelection(timeoutSec := 1) {
+    ; The hotkey that got us here is usually still held down — Ctrl+Alt+T for
+    ; QuickTrans, say — and the copy then reaches the app as Ctrl+Alt+C
+    ; rather than Ctrl+C. Most apps do nothing with that, so nothing lands on
+    ; the clipboard and the window opens empty. Give the fingers a moment to
+    ; leave the keys, but only a moment: a key held down on purpose, or stuck,
+    ; must not hang the program.
+    stop := A_TickCount + 400
+    while (A_TickCount < stop
+           && (GetKeyState("Ctrl", "P") || GetKeyState("Alt", "P")
+               || GetKeyState("Shift", "P") || GetKeyState("LWin", "P")))
+        Sleep(15)
+
     A_Clipboard := ""
     Send("^c")
     if !ClipWait(timeoutSec, 0)

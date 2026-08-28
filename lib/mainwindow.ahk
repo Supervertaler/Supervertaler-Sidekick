@@ -197,14 +197,24 @@ MW_QTEnsureSlots(n) {
     MW_Tabs.UseTab(2)
     while (MW_QTRowCtl.Length < n) {
         i := MW_QTRowCtl.Length + 1
+        MW_Gui.SetFont("s9 Bold")
         num := MW_Gui.Add("Text", "x20 y0 w18 Right", i "")
-        eng := MW_Gui.Add("Text", "x42 y0 w78", "")
-        box := MW_Gui.Add("Edit", "x124 y0 w300 r2 Multi ReadOnly -VScroll", "")
+        MW_Gui.SetFont("s9 Norm")
+        eng := MW_Gui.Add("Text", "x42 y0 w104", "")
+        ; Which model answered, under the engine name. For OpenRouter the
+        ; engine name says nothing at all — it is a gateway, and the model
+        ; is the whole of what you chose — and for the rest it still beats
+        ; guessing whether that was Haiku or Opus.
+        MW_Gui.SetFont("s8")
+        mdl := MW_Gui.Add("Text", "x42 y0 w104 cGray", "")
+        MW_Gui.SetFont("s9 Norm")
+        box := MW_Gui.Add("Edit", "x156 y0 w300 r2 Multi ReadOnly -VScroll", "")
         box.OnEvent("Focus", MW_MakeRowFocus(i))
         num.Visible := false
         eng.Visible := false
+        mdl.Visible := false
         box.Visible := false
-        MW_QTRowCtl.Push(Map("num", num, "eng", eng, "box", box))
+        MW_QTRowCtl.Push(Map("num", num, "eng", eng, "mdl", mdl, "box", box))
     }
     MW_Tabs.UseTab()
 }
@@ -330,10 +340,32 @@ MW_QTTranslate() {
         return
     }
 
-    n := QT_Start(text, QT_Code(MW_QTSrc.Text), QT_Code(MW_QTTgt.Text))
+    ; With several LLMs enabled, translating every selection through all of
+    ; them costs real money. When auto-fetch is off the free machine
+    ; translation runs on its own and the LLMs wait for Ctrl+Shift+Enter.
+    groups := (QT_Setting("AutoFetchAI", "1") = "0") ? ["mt"] : ""
+
+    n := QT_Start(text, QT_Code(MW_QTSrc.Text), QT_Code(MW_QTTgt.Text), groups)
     if (n = 0) {
         MW_SetStatus("No engines configured. MyMemory needs no key; add "
-                   . "others under [Keys] in settings.ini.")
+                   . "others under Settings → AI providers.")
+        return
+    }
+    MW_RenderTranslations(false)
+}
+
+; Bring in the engines that were held back.
+MW_QTFetchAI() {
+    global MW_QTSource, MW_QTSrc, MW_QTTgt
+
+    text := Trim(MW_QTSource.Value)
+    if (text = "")
+        return
+
+    n := QT_StartMore(text, QT_Code(MW_QTSrc.Text), QT_Code(MW_QTTgt.Text),
+                      ["ai"])
+    if (n = 0) {
+        MW_SetStatus("No AI engines left to ask.")
         return
     }
     MW_RenderTranslations(false)
@@ -366,8 +398,11 @@ MW_RenderTranslations(finished := false) {
         ; the digits act on the results instead of being typed into it.
         if MW_EditingSource()
             MW_FocusResults()
+        held := QT_PendingCount(["ai"])
         MW_SetStatus("Done.  1-9 insert  ·  ↑↓ choose  ·  Enter insert  ·  "
-                   . "Ctrl+Enter re-translate  ·  Ctrl+C copy  ·  Esc close")
+                   . "Ctrl+Enter re-translate  ·  Ctrl+C copy"
+                   . (held ? "  ·  Ctrl+Shift+Enter ask " held " AI engine"
+                           . (held = 1 ? "" : "s") : "  ·  Esc close"))
     }
     else
         MW_SetStatus("Translating…")
@@ -423,8 +458,8 @@ MW_QTLayout() {
     y += 36
 
     ; ---- results ---------------------------------------------------------
-    boxLeft := left + 104
-    boxW    := width - 104
+    boxLeft := left + 130
+    boxW    := width - 130
     if (boxW < 120)
         boxW := 120
     perLine := Round(boxW / 6.6)
@@ -438,6 +473,7 @@ MW_QTLayout() {
         if (i > MW_QTRows.Length || y > bottom - 24) {
             r["num"].Visible := false
             r["eng"].Visible := false
+            r["mdl"].Visible := false
             r["box"].Visible := false
             continue
         }
@@ -458,19 +494,40 @@ MW_QTLayout() {
         if (h < lineH + 8)
             h := lineH + 8
 
+        ; A row showing a model name needs room for both label lines, or the
+        ; model ends up nearer the next engine than its own and the reader
+        ; has to work out which is which.
+        model := MW_RowModel(job["engine"])
+        if (model != "" && h < 34)
+            h := 34
+
         r["num"].Move(left, y + 2, 18)
         r["num"].Value := (i = MW_QTSel ? "▸" : "") i
-        r["eng"].Move(left + 22, y + 2, 78)
+        r["eng"].Move(left + 22, y + 2, 104)
         r["eng"].Value := job["engine"]["label"]
+
+        r["mdl"].Move(left + 22, y + 16, 104, 26)
+        r["mdl"].Value := model
         r["box"].Move(boxLeft, y, boxW, h)
         r["box"].Value := rowText
 
         r["num"].Visible := true
         r["eng"].Visible := true
+        r["mdl"].Visible := (model != "")
         r["box"].Visible := true
 
-        y += h + 6
+        y += h + 14
     }
+}
+
+; The model an engine actually used, for the grey line under its name. The
+; machine-translation engines have exactly one, so naming it would be noise.
+MW_RowModel(engine) {
+    id := engine["id"]
+    providers := AI_Providers()
+    if !providers.Has(id)
+        return ""
+    return QT_Model(id, providers[id]["default_model"])
 }
 
 ; Lines a string needs at a given width, counting its own newlines too — a
@@ -824,6 +881,7 @@ MW_Keys() {
     Hotkey("^1",          (*) => MW_GoTab(1),   "On")
     Hotkey("^2",          (*) => MW_GoTab(2),   "On")
     Hotkey("^Enter",      (*) => MW_QTTranslate(), "On")
+    Hotkey("^+Enter",     (*) => MW_QTFetchAI(), "On")
     Hotkey("^c",          (*) => MW_Copy(), "On")
 
     ; Plain digits insert a translation, but only on the QuickTrans tab and
@@ -958,7 +1016,11 @@ MW_Right() {
         Send("{Right}")                 ; move the caret, not the pane
         return
     }
-    if (MW_FocusedIs(MW_Clips) || MW_ActiveTab() = 2) {
+    ; Cross into the tree from either pane — but only from outside it. Without
+    ; the second test, Right on the QuickTrans tab re-focuses the tree forever
+    ; and never reaches the expanding below.
+    if (MW_FocusedIs(MW_Clips)
+        || (MW_ActiveTab() = 2 && !MW_FocusedIs(MW_Tree))) {
         MW_FocusTree()
         return
     }
