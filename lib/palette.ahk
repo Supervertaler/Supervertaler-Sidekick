@@ -35,7 +35,9 @@ PAL_Show(*) {
     catch
         PAL_Source := 0
 
-    PAL_Selection := PAL_CaptureSelection()
+    ; Not captured on open — see the note in MW_Show. Clearing the clipboard
+    ; and waiting for a Ctrl+C that never comes cost ~400ms every time.
+    PAL_Selection := ""
 
     PAL_BuildIndex()
 
@@ -221,19 +223,11 @@ PAL_Refresh() {
     if (PAL_Shown.Length > 0)
         PAL_List.Modify(1, "Select Focus")
 
-    if (PAL_Selection = "")
-        sel := "no selection"
-    else
-        sel := "selection: " CB_Preview(PAL_Selection)
-    if (StrLen(sel) > 60)
-        sel := SubStr(sel, 1, 60) "..."
-
     capped := ""
     if (PAL_Shown.Length >= PAL_MAX_ROWS)
         capped := " (showing first " PAL_MAX_ROWS ")"
 
     try PAL_Status.Value := PAL_Shown.Length " of " PAL_Items.Length capped
-                          . "   ·   " sel
                           . "   ·   ↑↓ choose  ·  Enter run  ·  Esc close"
 }
 

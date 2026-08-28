@@ -39,7 +39,14 @@ MW_Show(*) {
     catch
         MW_Source := 0
 
-    MW_Selection := PAL_CaptureSelection()
+    ; The selection is NOT captured here. Doing so cost ~400ms on every open:
+    ; clearing the clipboard and sending Ctrl+C means ClipWait sits out its
+    ; full timeout whenever nothing is selected, which is the common case —
+    ; you usually open this to paste a clip, not to act on a selection.
+    ;
+    ; Entries that need the selection copy it themselves once focus is back
+    ; on the source window, which is what the classic popup always did.
+    MW_Selection := ""
 
     if (MW_Gui = "")
         MW_Build()
@@ -89,11 +96,21 @@ MW_Build() {
 ; ---------------------------------------------------------------------------
 ; Clipboard pane
 ; ---------------------------------------------------------------------------
-MW_RefreshClips() {
-    global MW_Clips, MW_Shown, CB_Items, MW_Search
+; Rebuilding 200 rows costs ~37ms, and between two opens the history usually
+; has not changed at all. Skip the work when neither the data nor the filter
+; has moved.
+MW_RefreshClips(force := false) {
+    global MW_Clips, MW_Shown, CB_Items, MW_Search, CB_Rev
+    static lastRev := -1
+    static lastNeedle := "`n(never)"
 
     needle := ""
     try needle := Trim(MW_Search.Value)
+
+    if (!force && CB_Rev = lastRev && needle == lastNeedle)
+        return
+    lastRev := CB_Rev
+    lastNeedle := needle
 
     MW_Clips.Opt("-Redraw")
     MW_Clips.Delete()
@@ -130,12 +147,21 @@ MW_CustomDraw(ctrl, lParam) {
 ; ---------------------------------------------------------------------------
 ; Menu pane
 ; ---------------------------------------------------------------------------
-MW_RefreshTree() {
+; ~196 nodes cost ~25ms to build, and the menu changes far less often than
+; the window is opened.
+MW_RefreshTree(force := false) {
     global MW_Tree, MW_Nodes, MW_Sections, MW_Rebuilding
-    global MW_Search, BeijerBotData
+    global MW_Search, BeijerBotData, BB_MenuRev
+    static lastRev := -1
+    static lastNeedle := "`n(never)"
 
     needle := ""
     try needle := Trim(MW_Search.Value)
+
+    if (!force && BB_MenuRev = lastRev && needle == lastNeedle)
+        return
+    lastRev := BB_MenuRev
+    lastNeedle := needle
 
     ; Delete() clears the selection, which fires ItemSelect, which asks for
     ; the section legend — while MW_Sections still holds ids belonging to the
@@ -280,15 +306,11 @@ MW_OnSearch() {
 }
 
 MW_UpdateStatus() {
-    global MW_Status, MW_Shown, CB_Items, MW_Selection
+    global MW_Status, MW_Shown, CB_Items
 
-    sel := MW_Selection = "" ? "no selection"
-                             : "selection: " CB_Preview(MW_Selection)
-    if (StrLen(sel) > 46)
-        sel := SubStr(sel, 1, 46) "..."
-
+    ; No "selection:" readout any more — nothing is copied on open, so there
+    ; is nothing to report until an entry actually asks for it.
     try MW_Status.Value := MW_Shown.Length " of " CB_Items.Length " clips"
-        . "   ·   " sel
         . "   ·   ↑↓ move  ·  → menu  ·  ← back  ·  Enter use  ·  Esc close"
 }
 

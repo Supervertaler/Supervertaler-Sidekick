@@ -25,6 +25,7 @@ global CB_StatusText := ""
 global CB_Enabled    := true
 global CB_Loaded     := false
 global CB_Shown      := []      ; entries currently visible, in row order
+global CB_Rev        := 0       ; bumped on every change to CB_Items
 
 ; Offered as a starting point for the exclusion list. Not a default: someone
 ; who copies a URL out of their password manager and finds it missing would
@@ -168,7 +169,8 @@ CB_File() {
 }
 
 CB_Load() {
-    global CB_Items, CB_Loaded
+    global CB_Items, CB_Loaded, CB_Rev
+    CB_Rev++
     CB_Items := []
     data := LoadJsonFile(CB_File())
     if (data is Map && data.Has("items")) {
@@ -181,6 +183,8 @@ CB_Load() {
 }
 
 CB_Save() {
+    global CB_Rev
+    CB_Rev++
     data := Map()
     data["version"] := 1
     data["items"] := CB_Items

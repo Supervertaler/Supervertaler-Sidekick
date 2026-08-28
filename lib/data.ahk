@@ -75,7 +75,12 @@ EnsureDataDir() {
     return dir
 }
 
+; Bumped whenever the menu data changes, so views can skip a rebuild.
+global BB_MenuRev := 0
+
 LoadMenuData() {
+    global BB_MenuRev
+    BB_MenuRev++
     EnsureDataDir()
     data := LoadJsonFile(DataFile("menu.json"))
     if (data = "") {
@@ -92,5 +97,7 @@ LoadMenuData() {
 }
 
 SaveMenuData(data) {
+    global BB_MenuRev
+    BB_MenuRev++
     return SaveJsonFile(DataFile("menu.json"), data)
 }
