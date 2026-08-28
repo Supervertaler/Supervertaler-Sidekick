@@ -28,12 +28,24 @@ global MW_Shown     := []      ; clips currently listed, in row order
 global MW_Selection := ""      ; text selected when the window opened
 global MW_Source    := 0       ; window to paste back into
 
+; The left pane is tabbed: clipboard history and QuickTrans. The menu tree on
+; the right stays put, so a translation can be inserted and a menu action run
+; without leaving the window.
+global MW_Tabs      := ""
+global MW_QTSource  := ""      ; editable source text
+global MW_QTSrc     := ""      ; source language
+global MW_QTTgt     := ""      ; target language
+global MW_QTList    := ""
+global MW_QTRows    := []      ; jobs in row order
+
 MW_HEAD_ON  := "c0A5FA0"       ; focused column header
 MW_HEAD_OFF := "c606060"
 
 ; ---------------------------------------------------------------------------
-MW_Show(*) {
-    global MW_Gui, MW_Source, MW_Selection, MW_Search
+; tab: 1 = clipboard (default), 2 = QuickTrans. Opening straight onto the
+; QuickTrans tab is what the Ctrl+Alt+T hotkey does.
+MW_Show(tab := 1) {
+    global MW_Gui, MW_Source, MW_Selection, MW_Search, MW_Tabs
 
     try MW_Source := WinGetID("A")
     catch
@@ -56,14 +68,40 @@ MW_Show(*) {
     MW_RefreshTree()
     MW_Gui.Show()
 
-    ; Land on the clipboard, not the search box: the common case is "paste
-    ; the thing I copied a minute ago", which is one keystroke from here.
-    MW_FocusClips()
+    if (tab = 2) {
+        MW_Tabs.Value := 2
+        try MW_QTList.Focus()
+        MW_MarkFocus("clips")
+    } else {
+        ; Land on the clipboard, not the search box: the common case is
+        ; "paste the thing I copied a minute ago", one keystroke from here.
+        MW_Tabs.Value := 1
+        MW_FocusClips()
+    }
+}
+
+; Ctrl+Alt+T: open on the QuickTrans tab with the selection already in the
+; source box, translating. This replaces the standalone QuickTrans window —
+; keeping the menu tree beside the results was the point of the exercise.
+MW_ShowQuickTrans(*) {
+    global MW_QTSource
+
+    sel := BB_CopySelection(1)
+    MW_Show(2)
+    if (sel != "") {
+        MW_QTSource.Value := sel
+        MW_QTTranslate()
+    } else {
+        MW_SetStatus("Select some text first, or type it above and press "
+                   . "Ctrl+Enter.")
+    }
 }
 
 MW_Build() {
     global MW_Gui, MW_Search, MW_Clips, MW_Tree, MW_Status
     global MW_ClipHead, MW_MenuHead
+    global MW_Tabs, MW_QTSource, MW_QTSrc, MW_QTTgt, MW_QTList
+    global QT_OnUpdate
 
     MW_Gui := Gui("+Resize +MinSize720x420", "Text Commander")
     MW_Gui.SetFont("s9", "Segoe UI")
@@ -75,22 +113,81 @@ MW_Build() {
     MW_Search := MW_Gui.Add("Edit", "x+4 yp-3 w800")
     MW_Search.OnEvent("Change", (*) => MW_OnSearch())
 
-    MW_ClipHead := MW_Gui.Add("Text", "xm y+10 w440 " MW_HEAD_ON, "CLIPBOARD")
-    MW_MenuHead := MW_Gui.Add("Text", "x+10 yp w400 " MW_HEAD_OFF, "MENU")
+    MW_ClipHead := MW_Gui.Add("Text", "xm y+10 w540 " MW_HEAD_ON,
+                              "CLIPBOARD  /  QUICKTRANS")
+    MW_MenuHead := MW_Gui.Add("Text", "x+10 yp w440 " MW_HEAD_OFF, "MENU")
 
-    MW_Clips := MW_Gui.Add("ListView", "xm y+4 w440 h420 -Multi",
+    ; ---- left pane: two tabs ------------------------------------------
+    MW_Tabs := MW_Gui.Add("Tab3", "xm y+4 w540 h430",
+                          ["Clipboard", "QuickTrans"])
+    MW_Tabs.OnEvent("Change", (*) => MW_OnTabChange())
+
+    MW_Tabs.UseTab(1)
+    MW_Clips := MW_Gui.Add("ListView", "xp+8 yp+28 w524 h396 -Multi",
                            ["", "When", "Text"])
     MW_Clips.OnEvent("DoubleClick", (*) => MW_RunClip())
     MW_Clips.OnEvent("ItemFocus", (*) => MW_MarkFocus("clips"))
     try MW_Clips.OnNotify(-12, MW_CustomDraw)   ; grey out pasted entries
 
-    MW_Tree := MW_Gui.Add("TreeView", "x+10 yp w400 h420")
+    MW_Tabs.UseTab(2)
+    MW_Gui.Add("Text", "xp+8 yp+28 w60", "Source:")
+    MW_QTSource := MW_Gui.Add("Edit", "xp yp+18 w524 r3 Multi")
+
+    MW_Gui.Add("Text", "xp yp+56 w34", "From:")
+    MW_QTSrc := MW_Gui.Add("DropDownList", "x+2 yp-4 w120", QT_LangNames())
+    MW_Gui.Add("Text", "x+8 yp+4 w16", "→")
+    MW_QTTgt := MW_Gui.Add("DropDownList", "x+2 yp-4 w120", QT_LangNames())
+    MW_Gui.Add("Button", "x+6 yp-1 w28", "⇄")
+        .OnEvent("Click", (*) => MW_QTSwap())
+    MW_Gui.Add("Button", "x+8 yp w96", "Translate")
+        .OnEvent("Click", (*) => MW_QTTranslate())
+
+    MW_QTList := MW_Gui.Add("ListView", "xm+20 y+10 w524 h258 -Multi",
+                            ["#", "Engine", "Translation"])
+    MW_QTList.OnEvent("DoubleClick", (*) => MW_QTInsertSelected())
+
+    MW_SelectLang(MW_QTSrc, QT_Setting("SourceLang", "Dutch"))
+    MW_SelectLang(MW_QTTgt, QT_Setting("TargetLang", "English"))
+
+    ; ---- right pane: the menu, outside the tabs ------------------------
+    MW_Tabs.UseTab()
+    MW_Tree := MW_Gui.Add("TreeView", "x+10 ym+38 w440 h430")
     MW_Tree.OnEvent("DoubleClick", (*) => MW_RunTree())
     MW_Tree.OnEvent("ItemSelect", (*) => MW_MarkFocus("menu"))
 
-    MW_Status := MW_Gui.Add("Text", "xm y+8 w850", "")
+    MW_Status := MW_Gui.Add("Text", "xm y+440 w1000", "")
+
+    ; Results land here as each engine replies.
+    QT_OnUpdate := MW_RenderTranslations
 
     MW_Keys()
+}
+
+MW_SelectLang(ctrl, name) {
+    for i, n in QT_LangNames() {
+        if (n = name) {
+            ctrl.Choose(i)
+            return
+        }
+    }
+    ctrl.Choose(1)
+}
+
+MW_ActiveTab() {
+    global MW_Tabs
+    try return MW_Tabs.Value
+    catch
+        return 1
+}
+
+MW_OnTabChange() {
+    global MW_Clips, MW_QTList
+    if (MW_ActiveTab() = 2) {
+        try MW_QTList.Focus()
+    } else {
+        try MW_Clips.Focus()
+    }
+    MW_MarkFocus("clips")
 }
 
 ; ---------------------------------------------------------------------------
@@ -142,6 +239,107 @@ MW_RefreshClips(force := false) {
 MW_CustomDraw(ctrl, lParam) {
     global MW_Shown
     return BB_DrawPastedRows(lParam, MW_Shown)
+}
+
+; ---------------------------------------------------------------------------
+; QuickTrans tab
+; ---------------------------------------------------------------------------
+MW_QTTranslate() {
+    global MW_QTSource, MW_QTSrc, MW_QTTgt
+
+    text := Trim(MW_QTSource.Value)
+    if (text = "") {
+        MW_SetStatus("Nothing to translate — select some text, or type it "
+                   . "above and press Ctrl+Enter.")
+        return
+    }
+
+    n := QT_Start(text, QT_Code(MW_QTSrc.Text), QT_Code(MW_QTTgt.Text))
+    if (n = 0) {
+        MW_SetStatus("No engines configured. MyMemory needs no key; add "
+                   . "others under [Keys] in settings.ini.")
+        return
+    }
+    MW_RenderTranslations(false)
+}
+
+MW_QTSwap() {
+    global MW_QTSrc, MW_QTTgt
+    a := MW_QTSrc.Text, b := MW_QTTgt.Text
+    MW_SelectLang(MW_QTSrc, b)
+    MW_SelectLang(MW_QTTgt, a)
+    MW_QTTranslate()
+}
+
+MW_RenderTranslations(finished := false) {
+    global MW_QTList, MW_QTRows
+
+    jobs := QT_Ordered()
+
+    MW_QTList.Opt("-Redraw")
+    MW_QTList.Delete()
+    MW_QTRows := []
+
+    for job in jobs {
+        n := MW_QTRows.Length + 1
+        switch job["state"] {
+            case "pending": shown := "…"
+            case "error":   shown := "(" job["text"] ")"
+            default:        shown := job["text"]
+        }
+        MW_QTList.Add(, n, job["engine"]["label"],
+                        StrReplace(StrReplace(shown, "`r", " "), "`n", " "))
+        MW_QTRows.Push(job)
+    }
+
+    MW_QTList.ModifyCol(1, 26)
+    MW_QTList.ModifyCol(2, 90)
+    MW_QTList.ModifyCol(3, 400)
+    MW_QTList.Opt("+Redraw")
+
+    if (MW_QTRows.Length > 0 && MW_QTList.GetNext(0) = 0)
+        MW_QTList.Modify(1, "Select Focus")
+
+    if (finished)
+        MW_SetStatus("Done.  1-9 insert  ·  ↑↓ choose  ·  Enter insert  ·  "
+                   . "Ctrl+Enter re-translate  ·  → menu  ·  Esc close")
+    else
+        MW_SetStatus("Translating…")
+}
+
+; True while the caret is in the source box, so digits and arrows typed there
+; reach the text instead of inserting a translation.
+MW_EditingSource() {
+    global MW_Gui, MW_QTSource
+    if (MW_ActiveTab() != 2)
+        return false
+    try return ControlGetFocus("ahk_id " MW_Gui.Hwnd) = MW_QTSource.Hwnd
+    catch
+        return false
+}
+
+MW_QTInsertRow(n) {
+    global MW_QTRows
+    if (n < 1 || n > MW_QTRows.Length)
+        return
+    MW_QTInsert(MW_QTRows[n])
+}
+
+MW_QTInsertSelected() {
+    global MW_QTList, MW_QTRows
+    row := MW_QTList.GetNext(0)
+    if (row = 0 || row > MW_QTRows.Length)
+        return
+    MW_QTInsert(MW_QTRows[row])
+}
+
+MW_QTInsert(job) {
+    if (job["state"] != "done")
+        return
+    text := job["text"]
+    MW_Hide()
+    MW_ReturnToSource()
+    SendText(text)
 }
 
 ; ---------------------------------------------------------------------------
@@ -305,6 +503,11 @@ MW_OnSearch() {
     MW_UpdateStatus()
 }
 
+MW_SetStatus(text) {
+    global MW_Status
+    try MW_Status.Value := text
+}
+
 MW_UpdateStatus() {
     global MW_Status, MW_Shown, CB_Items
 
@@ -384,6 +587,19 @@ MW_Keys() {
     Hotkey("Tab",         (*) => MW_TogglePane(), "On")
     Hotkey("^f",          (*) => MW_FocusSearch(), "On")
 
+    ; Tabs
+    Hotkey("^Tab",        (*) => MW_NextTab(),  "On")
+    Hotkey("^1",          (*) => MW_GoTab(1),   "On")
+    Hotkey("^2",          (*) => MW_GoTab(2),   "On")
+    Hotkey("^Enter",      (*) => MW_QTTranslate(), "On")
+
+    ; Plain digits insert a translation, but only on the QuickTrans tab and
+    ; only when the caret is not in the source box.
+    Loop 9 {
+        d := A_Index
+        Hotkey(d "", MW_MakeDigit(d), "On")
+    }
+
     ; Section jumping
     Hotkey("^Down",       (*) => MW_StepSection(1),  "On")
     Hotkey("^Up",         (*) => MW_StepSection(-1), "On")
@@ -400,6 +616,40 @@ MW_Keys() {
 
 MW_MakeSectionJump(n) {
     return (*) => MW_GoSection(n)
+}
+
+MW_MakeDigit(n) {
+    return (*) => MW_Digit(n)
+}
+
+; A digit means three different things depending on where you are: text in
+; the source box, a translation to insert on the QuickTrans tab, and a
+; character to search for anywhere else.
+MW_Digit(n) {
+    global MW_Search
+    if MW_EditingSource() {
+        Send(n "")
+        return
+    }
+    if (MW_ActiveTab() = 2) {
+        MW_QTInsertRow(n)
+        return
+    }
+    ; On the clipboard tab a digit is just typing: send it to the search box.
+    try {
+        MW_Search.Focus()
+        Send(n "")
+    }
+}
+
+MW_GoTab(n) {
+    global MW_Tabs
+    try MW_Tabs.Value := n
+    MW_OnTabChange()
+}
+
+MW_NextTab() {
+    MW_GoTab(MW_ActiveTab() = 1 ? 2 : 1)
 }
 
 ; Home/End go to the ends of whichever pane has focus.
@@ -467,7 +717,7 @@ MW_Right() {
         Send("{Right}")                 ; move the caret, not the pane
         return
     }
-    if (MW_FocusedIs(MW_Clips)) {
+    if (MW_FocusedIs(MW_Clips) || MW_FocusedIs(MW_QTList)) {
         MW_FocusTree()
         return
     }
@@ -492,10 +742,10 @@ MW_Left() {
         Send("{Left}")
         return
     }
-    if (MW_FocusedIs(MW_Clips))
+    if (MW_FocusedIs(MW_Clips) || MW_FocusedIs(MW_QTList))
         return
 
-    ; In the tree: close, then climb, then cross back to the clipboard.
+    ; In the tree: close, then climb, then cross back to the left pane.
     id := MW_Tree.GetSelection()
     if !id {
         MW_FocusClips()
@@ -510,15 +760,26 @@ MW_Left() {
         MW_Tree.Modify(parent, "Select")
         return
     }
+    MW_FocusLeft()
+}
+
+; Back to whichever tab is on show, not always the clipboard.
+MW_FocusLeft() {
+    global MW_QTList
+    if (MW_ActiveTab() = 2) {
+        try MW_QTList.Focus()
+        MW_MarkFocus("clips")
+        return
+    }
     MW_FocusClips()
 }
 
 MW_TogglePane() {
-    global MW_Clips
-    if MW_FocusedIs(MW_Clips)
+    global MW_Clips, MW_QTList
+    if (MW_FocusedIs(MW_Clips) || MW_FocusedIs(MW_QTList))
         MW_FocusTree()
     else
-        MW_FocusClips()
+        MW_FocusLeft()
 }
 
 ; ---------------------------------------------------------------------------
@@ -610,10 +871,18 @@ MW_SectionLegend() {
 }
 
 MW_Activate() {
-    global MW_Search, MW_Clips, MW_Tree
+    global MW_Search, MW_Clips, MW_Tree, MW_QTList
 
+    if MW_EditingSource() {
+        MW_QTTranslate()
+        return
+    }
     if MW_FocusedIs(MW_Search) {
         MW_FocusClips()
+        return
+    }
+    if MW_FocusedIs(MW_QTList) {
+        MW_QTInsertSelected()
         return
     }
     if MW_FocusedIs(MW_Clips) {
@@ -684,26 +953,39 @@ MW_Hide(*) {
 MW_OnSize(thisGui, minMax, width, height) {
     global MW_Search, MW_Clips, MW_Tree, MW_Status
     global MW_ClipHead, MW_MenuHead
+    global MW_Tabs, MW_QTSource, MW_QTList
     if (minMax = -1)
         return
 
     pad   := 12
     gap   := 10
     total := width - pad * 2 - gap
-    if (total < 300)
-        total := 300
-    leftW  := Round(total * 0.55)
+    if (total < 400)
+        total := 400
+    leftW  := Round(total * 0.56)
     rightW := total - leftW
     h := height - 130
-    if (h < 120)
-        h := 120
+    if (h < 160)
+        h := 160
 
     try {
         MW_Search.Move(, , width - pad * 2 - 50)
         MW_ClipHead.Move(, , leftW)
         MW_MenuHead.Move(pad + leftW + gap, , rightW)
-        MW_Clips.Move(, , leftW, h)
-        MW_Clips.ModifyCol(3, leftW - 100)
+
+        MW_Tabs.Move(, , leftW, h)
+        inner := leftW - 16              ; inside the tab control's border
+
+        ; Tab 1
+        MW_Clips.Move(, , inner, h - 34)
+        MW_Clips.ModifyCol(3, inner - 100)
+
+        ; Tab 2: source box and language row are fixed height, the results
+        ; list takes whatever is left.
+        MW_QTSource.Move(, , inner)
+        MW_QTList.Move(, , inner, h - 130)
+        MW_QTList.ModifyCol(3, inner - 130)
+
         MW_Tree.Move(pad + leftW + gap, , rightW, h)
         MW_Status.Move(, , width - pad * 2)
     }

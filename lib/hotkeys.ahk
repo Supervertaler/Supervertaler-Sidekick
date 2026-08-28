@@ -37,7 +37,7 @@ HK_Labels() {
 HK_Actions() {
     static actions := Map(
         "Palette",       () => PAL_Show(),
-        "QuickTrans",    () => QT_Show(),
+        "QuickTrans",    () => MW_ShowQuickTrans(),
         "Menu",          () => MW_Show(),
         "MenuCentred",   () => ShowMainMenu(132, 164),
         "Clipboard",     () => CB_Show(),

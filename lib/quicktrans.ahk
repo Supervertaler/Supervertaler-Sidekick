@@ -1,30 +1,23 @@
 #Requires AutoHotkey v2.0
 ; ===========================================================================
-; lib/quicktrans.ahk — translate the selection with several engines at once.
+; lib/quicktrans.ahk — the translation engines.
 ;
-; Select text anywhere, press the hotkey, and every configured engine is asked
-; in parallel. Results arrive as they land, numbered; press the number to
-; insert one where you were working.
+; Engines only: requests, parsing, language codes, and the parallel fetch.
+; The presentation lives in lib/mainwindow.ahk as the QuickTrans tab, so the
+; menu tree stays on screen beside the translations — translate something,
+; insert it, then run a menu action without changing windows.
 ;
-; Ported from the Supervertaler Workbench's QuickTrans. Same idea, same
-; keyboard model (1-9 insert, arrows navigate, Enter inserts, Esc closes),
-; but the requests are AutoHotkey's async WinHttp with a single polling timer
-; rather than a thread per engine.
+; Every engine is asked at once through async WinHttp driven by one polling
+; timer, so nothing blocks while four engines think. Whoever is showing the
+; results sets QT_OnUpdate and gets called each time a result lands.
 ;
 ; MyMemory needs no API key, so this does something useful before anything is
 ; configured. Everything else reads its key from settings.ini.
 ; ===========================================================================
 
-global QT_Gui      := ""
-global QT_Source   := ""      ; the editable source box
-global QT_List     := ""
-global QT_SrcLang  := ""
-global QT_TgtLang  := ""
-global QT_Status   := ""
 global QT_Jobs     := []      ; one entry per engine currently in flight
-global QT_Rows     := []      ; what the list is showing, in row order
-global QT_Window   := 0       ; window to insert back into
 global QT_Running  := false
+global QT_OnUpdate := ""      ; called whenever a result arrives
 
 ; ---------------------------------------------------------------------------
 ; Languages. Names for the dropdowns, ISO codes for the engines.
@@ -59,6 +52,14 @@ QT_Code(name) {
     return langs.Has(name) ? langs[name] : "en"
 }
 
+QT_LangName(code) {
+    for name, c in QT_Languages() {
+        if (c = code)
+            return name
+    }
+    return code
+}
+
 ; ---------------------------------------------------------------------------
 ; Engines.
 ;
@@ -80,7 +81,6 @@ QT_Setting(key, default) {
     return AI_Ini(SettingsFile(), "QuickTrans", key, default)
 }
 
-; Which engines are configured and switched on.
 QT_ActiveEngines() {
     out := []
     for e in QT_Engines() {
@@ -95,10 +95,6 @@ QT_ActiveEngines() {
 
 ; ---------------------------------------------------------------------------
 ; Requests
-;
-; Each engine gets its own COM object opened asynchronously; one timer polls
-; them all. Nothing blocks, so the rest of Text Commander stays live while six
-; engines are thinking.
 ; ---------------------------------------------------------------------------
 QT_BuildRequest(engine, text, srcCode, tgtCode) {
     id  := engine["id"]
@@ -147,20 +143,10 @@ QT_BuildRequest(engine, text, srcCode, tgtCode) {
         r["headers"][p["version_header"]] := p["version_value"]
 
     model := QT_Setting(id "_model", p["default_model"])
-    opts := Map("maxtokens", QT_Setting("MaxTokens", "1000"),
-                "effort", QT_Setting("Effort", "low"))
     cfg := Map("maxtokens", QT_Setting("MaxTokens", "1000"),
                "effort", QT_Setting("Effort", "low"))
-    r["body"] := AI_BuildBody(id, model, prompt, opts, cfg)
+    r["body"] := AI_BuildBody(id, model, prompt, Map(), cfg)
     return r
-}
-
-QT_LangName(code) {
-    for name, c in QT_Languages() {
-        if (c = code)
-            return name
-    }
-    return code
 }
 
 QT_ParseResponse(engine, raw) {
@@ -187,28 +173,21 @@ QT_ParseResponse(engine, raw) {
 }
 
 ; ---------------------------------------------------------------------------
-QT_Translate() {
-    global QT_Jobs, QT_Running, QT_Source, QT_SrcLang, QT_TgtLang
-
-    text := Trim(QT_Source.Value)
-    if (text = "") {
-        QT_SetStatus("Nothing to translate.")
-        return
-    }
+; Fetch
+;
+; Returns immediately. QT_Jobs fills in as replies land; QT_OnUpdate is
+; called after each poll so the view can redraw.
+; ---------------------------------------------------------------------------
+QT_Start(text, srcCode, tgtCode) {
+    global QT_Jobs, QT_Running
 
     QT_Abort()
 
-    srcCode := QT_Code(QT_SrcLang.Text)
-    tgtCode := QT_Code(QT_TgtLang.Text)
-
     engines := QT_ActiveEngines()
-    if (engines.Length = 0) {
-        QT_SetStatus("No engines configured. MyMemory needs no key; add "
-                   . "others under [Keys] in settings.ini.")
-        return
-    }
-
     QT_Jobs := []
+    if (engines.Length = 0)
+        return 0
+
     for e in engines {
         job := Map("engine", e, "state", "pending", "text", "", "req", "")
         try {
@@ -228,12 +207,12 @@ QT_Translate() {
     }
 
     QT_Running := true
-    QT_RenderRows()
     SetTimer(QT_Poll, 120)
+    return QT_Jobs.Length
 }
 
 QT_Poll() {
-    global QT_Jobs, QT_Running
+    global QT_Jobs, QT_Running, QT_OnUpdate
 
     pending := 0
     for job in QT_Jobs {
@@ -279,13 +258,13 @@ QT_Poll() {
         job["req"] := ""
     }
 
-    QT_RenderRows()
-
     if (pending = 0) {
         SetTimer(QT_Poll, 0)
         QT_Running := false
-        QT_SetStatus("Done.  1-9 insert  ·  ↑↓ choose  ·  Enter insert  ·  "
-                   . "Ctrl+Enter re-translate  ·  Esc close")
+    }
+
+    if (QT_OnUpdate != "") {
+        try QT_OnUpdate.Call(pending = 0)
     }
 }
 
@@ -301,238 +280,15 @@ QT_Abort() {
     QT_Running := false
 }
 
-; ---------------------------------------------------------------------------
-; Display
-; ---------------------------------------------------------------------------
-QT_RenderRows() {
-    global QT_List, QT_Jobs, QT_Rows
-
-    QT_List.Opt("-Redraw")
-    QT_List.Delete()
-    QT_Rows := []
-
-    ; Machine translation first, then the LLMs — same order as the Workbench,
-    ; and it puts the fast deterministic engines at the top of the list.
+; Jobs in display order: machine translation first, then the LLMs.
+QT_Ordered() {
+    global QT_Jobs
+    out := []
     for group in ["mt", "ai"] {
         for job in QT_Jobs {
-            e := job["engine"]
-            if (e["group"] != group)
-                continue
-
-            n := QT_Rows.Length + 1
-            switch job["state"] {
-                case "pending": shown := "…"
-                case "error":   shown := "(" job["text"] ")"
-                default:        shown := job["text"]
-            }
-            QT_List.Add(, n, e["label"], StrReplace(shown, "`n", " "))
-            QT_Rows.Push(job)
+            if (job["engine"]["group"] = group)
+                out.Push(job)
         }
     }
-
-    QT_List.ModifyCol(1, 28)
-    QT_List.ModifyCol(2, 110)
-    QT_List.ModifyCol(3, 620)
-    QT_List.Opt("+Redraw")
-
-    if (QT_Rows.Length > 0 && QT_List.GetNext(0) = 0)
-        QT_List.Modify(1, "Select Focus")
-}
-
-QT_SetStatus(text) {
-    global QT_Status
-    try QT_Status.Value := text
-}
-
-; ---------------------------------------------------------------------------
-QT_Show(*) {
-    global QT_Gui, QT_Window, QT_Source, QT_SrcLang, QT_TgtLang
-
-    try QT_Window := WinGetID("A")
-    catch
-        QT_Window := 0
-
-    ; Unlike the other windows this one genuinely needs the selection up
-    ; front — there is nothing to translate without it.
-    sel := BB_CopySelection(1)
-
-    if (QT_Gui = "")
-        QT_BuildGui()
-
-    if (sel != "")
-        QT_Source.Value := sel
-
-    QT_Gui.Show()
-    QT_List.Focus()
-
-    if (Trim(QT_Source.Value) != "")
-        QT_Translate()
-    else
-        QT_SetStatus("Select some text first, or type it above and press "
-                   . "Ctrl+Enter.")
-}
-
-QT_BuildGui() {
-    global QT_Gui, QT_Source, QT_List, QT_SrcLang, QT_TgtLang, QT_Status
-
-    QT_Gui := Gui("+Resize +MinSize700x420", "Text Commander — QuickTrans")
-    QT_Gui.SetFont("s9", "Segoe UI")
-    QT_Gui.OnEvent("Close", QT_Hide)
-    QT_Gui.OnEvent("Escape", QT_Hide)
-    QT_Gui.OnEvent("Size", QT_OnSize)
-
-    QT_Gui.Add("Text", "xm ym", "Source:")
-    QT_Source := QT_Gui.Add("Edit", "xm y+4 w840 r3 Multi")
-
-    QT_Gui.Add("Text", "xm y+8 yp+4 w62", "Languages:")
-    QT_SrcLang := QT_Gui.Add("DropDownList", "x+4 yp-4 w150", QT_LangNames())
-    QT_Gui.Add("Text", "x+6 yp+4 w14", "→")
-    QT_TgtLang := QT_Gui.Add("DropDownList", "x+4 yp-4 w150", QT_LangNames())
-    QT_Gui.Add("Button", "x+6 yp-1 w32", "⇄").OnEvent("Click", (*) => QT_Swap())
-    QT_Gui.Add("Button", "x+14 yp w110", "Re-translate")
-        .OnEvent("Click", (*) => QT_Translate())
-
-    QT_SelectLang(QT_SrcLang, QT_Setting("SourceLang", "Dutch"))
-    QT_SelectLang(QT_TgtLang, QT_Setting("TargetLang", "English"))
-
-    QT_List := QT_Gui.Add("ListView", "xm y+10 w840 h300 -Multi",
-                          ["#", "Engine", "Translation"])
-    QT_List.OnEvent("DoubleClick", (*) => QT_InsertSelected())
-
-    QT_Status := QT_Gui.Add("Text", "xm y+8 w840", "")
-
-    QT_Keys()
-    QT_Gui.Show("w880 h520")
-}
-
-QT_SelectLang(ctrl, name) {
-    for i, n in QT_LangNames() {
-        if (n = name) {
-            ctrl.Choose(i)
-            return
-        }
-    }
-    ctrl.Choose(1)
-}
-
-QT_Swap() {
-    global QT_SrcLang, QT_TgtLang
-    a := QT_SrcLang.Text, b := QT_TgtLang.Text
-    QT_SelectLang(QT_SrcLang, b)
-    QT_SelectLang(QT_TgtLang, a)
-    QT_Translate()
-}
-
-; ---------------------------------------------------------------------------
-QT_Keys() {
-    global QT_Gui
-    HotIfWinActive("ahk_id " QT_Gui.Hwnd)
-
-    Loop 9 {
-        n := A_Index
-        Hotkey(n "", QT_MakeInsert(n), "On")
-    }
-    Hotkey("Enter",       (*) => QT_InsertSelected(), "On")
-    Hotkey("NumpadEnter", (*) => QT_InsertSelected(), "On")
-    Hotkey("^Enter",      (*) => QT_Translate(), "On")
-    Hotkey("Down",        (*) => QT_Move(1),  "On")
-    Hotkey("Up",          (*) => QT_Move(-1), "On")
-
-    HotIfWinActive()
-}
-
-QT_MakeInsert(n) {
-    return (*) => QT_InsertRow(n)
-}
-
-; The number keys must reach the source box while it is being edited,
-; otherwise typing "1" would insert a translation instead of a digit.
-QT_EditingSource() {
-    global QT_Gui, QT_Source
-    try return ControlGetFocus("ahk_id " QT_Gui.Hwnd) = QT_Source.Hwnd
-    catch
-        return false
-}
-
-QT_Move(delta) {
-    global QT_List, QT_Rows
-    if QT_EditingSource() {
-        Send(delta > 0 ? "{Down}" : "{Up}")
-        return
-    }
-    if (QT_Rows.Length = 0)
-        return
-    row := QT_List.GetNext(0)
-    if (row = 0)
-        row := (delta > 0) ? 0 : QT_Rows.Length + 1
-    target := row + delta
-    if (target < 1)
-        target := 1
-    if (target > QT_Rows.Length)
-        target := QT_Rows.Length
-    QT_List.Modify(0, "-Select")
-    QT_List.Modify(target, "Select Focus Vis")
-}
-
-QT_InsertRow(n) {
-    global QT_Rows
-    if QT_EditingSource() {
-        Send(n "")
-        return
-    }
-    if (n < 1 || n > QT_Rows.Length)
-        return
-    QT_Insert(QT_Rows[n])
-}
-
-QT_InsertSelected() {
-    global QT_List, QT_Rows
-    if QT_EditingSource() {
-        QT_Translate()
-        return
-    }
-    row := QT_List.GetNext(0)
-    if (row = 0 || row > QT_Rows.Length)
-        return
-    QT_Insert(QT_Rows[row])
-}
-
-QT_Insert(job) {
-    global QT_Window
-    if (job["state"] != "done")
-        return
-    text := job["text"]
-
-    QT_Hide()
-    if (QT_Window && WinExist("ahk_id " QT_Window)) {
-        try {
-            WinActivate("ahk_id " QT_Window)
-            WinWaitActive("ahk_id " QT_Window, , 1)
-        }
-    }
-    Sleep(80)
-    SendText(text)
-}
-
-QT_Hide(*) {
-    global QT_Gui
-    QT_Abort()
-    try QT_Gui.Hide()
-    return true
-}
-
-QT_OnSize(thisGui, minMax, width, height) {
-    global QT_Source, QT_List, QT_Status
-    if (minMax = -1)
-        return
-    w := width - 24
-    h := height - 220
-    if (h < 100)
-        h := 100
-    try {
-        QT_Source.Move(, , w)
-        QT_List.Move(, , w, h)
-        QT_List.ModifyCol(3, w - 150)
-        QT_Status.Move(, , w)
-    }
+    return out
 }
