@@ -65,7 +65,7 @@ OpenLibraryEditor(*) {
         return
     }
 
-    LE_Gui := Gui("+Resize +MinSize820x460", "Beijer.bot — Library Editor")
+    LE_Gui := Gui("+Resize +MinSize820x500", "Beijer.bot — Library Editor")
     LE_Gui.SetFont("s9", "Segoe UI")
     LE_Gui.OnEvent("Close", LE_OnClose)
     LE_Gui.OnEvent("Size", LE_OnSize)
@@ -91,8 +91,16 @@ OpenLibraryEditor(*) {
         .OnEvent("Click", (*) => LE_Save())
     LE_Gui.Add("Button", "x+6 w80", "Close").OnEvent("Click", (*) => LE_OnClose())
 
+    ; Whole-section reordering, on its own row so it is clearly a different
+    ; operation from moving one entry.
+    LE_Gui.Add("Text", "xm y+10 w150", "Selected section:")
+    LE_Gui.Add("Button", "x+6 yp-4 w110", "Section up")
+        .OnEvent("Click", (*) => LE_MoveSection(-1))
+    LE_Gui.Add("Button", "x+6 w110", "Section down")
+        .OnEvent("Click", (*) => LE_MoveSection(1))
+
     LE_BuildTree()
-    LE_Gui.Show("w860 h520")
+    LE_Gui.Show("w860 h560")
 }
 
 ; ---------------------------------------------------------------------------
@@ -290,6 +298,116 @@ LE_DeleteSelected() {
         LE_RefreshList()
 }
 
+; ---------------------------------------------------------------------------
+; Moving whole sections.
+;
+; A section is a heading plus everything up to the next heading — a
+; contiguous run of the top-level array, not a container. Reordering one
+; means lifting that run and putting it back on the other side of its
+; neighbour, which is why this cannot use the per-entry swap above.
+; ---------------------------------------------------------------------------
+LE_SectionBlocks() {
+    global BeijerBotData
+    top := BeijerBotData["menu"]
+    blocks := []
+    cur := ""
+
+    Loop top.Length {
+        i := A_Index
+        if (GetKey(top[i], "kind", "") = "heading") {
+            if (cur != "")
+                blocks.Push(cur)
+            cur := Map("start", i, "end", i)
+        } else if (cur != "")
+            cur["end"] := i
+    }
+    if (cur != "")
+        blocks.Push(cur)
+    return blocks
+}
+
+LE_MoveSection(delta) {
+    global BeijerBotData, LE_Scope, LE_Dirty
+
+    if !(LE_Scope is Map) {
+        MsgBox("Select a section in the tree first.",
+               "Library Editor", "Icon!")
+        return
+    }
+
+    blocks := LE_SectionBlocks()
+
+    idx := 0
+    for i, b in blocks {
+        if (b["start"] = LE_Scope["start"] && b["end"] = LE_Scope["end"]) {
+            idx := i
+            break
+        }
+    }
+    if (!idx) {
+        MsgBox("Select a section on the left — whole sections move, "
+               "individual entries use the buttons above.",
+               "Library Editor", "Icon!")
+        return
+    }
+
+    target := idx + delta
+    if (target < 1 || target > blocks.Length)
+        return
+
+    top := BeijerBotData["menu"]
+    a := blocks[idx < target ? idx : target]      ; the earlier block
+    b := blocks[idx < target ? target : idx]      ; the later one
+
+    ; Remember which heading we are moving so it can be reselected after the
+    ; tree is rebuilt; array indices will all have shifted.
+    moved := top[LE_Scope["start"]]
+
+    rebuilt := []
+    Loop a["start"] - 1                            ; before both
+        rebuilt.Push(top[A_Index])
+    Loop b["end"] - b["start"] + 1                 ; the later block, first
+        rebuilt.Push(top[b["start"] + A_Index - 1])
+    if (b["start"] > a["end"] + 1) {               ; anything stranded between
+        Loop b["start"] - a["end"] - 1
+            rebuilt.Push(top[a["end"] + A_Index])
+    }
+    Loop a["end"] - a["start"] + 1                 ; the earlier block, after
+        rebuilt.Push(top[a["start"] + A_Index - 1])
+    Loop top.Length - b["end"]                     ; after both
+        rebuilt.Push(top[b["end"] + A_Index])
+
+    BeijerBotData["menu"] := rebuilt
+    LE_Dirty := true
+    LE_BuildTree()
+    LE_ReselectSection(moved)
+}
+
+; Find the tree node whose scope starts at the given heading and select it.
+LE_ReselectSection(heading) {
+    global LE_Tree, LE_Nodes, LE_Scope, BeijerBotData
+
+    top := BeijerBotData["menu"]
+    pos := 0
+    Loop top.Length {
+        if (top[A_Index] == heading) {
+            pos := A_Index
+            break
+        }
+    }
+    if (!pos)
+        return
+
+    for id, scope in LE_Nodes {
+        if (scope["start"] = pos) {
+            LE_Scope := scope
+            LE_Tree.Modify(id, "Select Vis")
+            LE_RefreshList()
+            return
+        }
+    }
+}
+
 LE_Move(delta) {
     global LE_Scope, LE_List, LE_Dirty
     row := LE_SelectedRow()
@@ -479,7 +597,7 @@ LE_OnSize(thisGui, minMax, width, height) {
         return
     treeW := 260
     listW := width - treeW - 40
-    h     := height - 90
+    h     := height - 130          ; room for the section-move row
     if (h < 120)
         h := 120
     if (listW < 200)

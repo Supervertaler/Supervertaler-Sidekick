@@ -181,6 +181,12 @@ MW_FillTree(items, parent) {
         if (kind = "separator" || kind = "clipboard")
             continue
 
+        ; Chrome that only makes sense in the classic popup: the app title,
+        ; and the shortcut to the clipboard window — this window already has
+        ; the clipboard in the pane on the left.
+        if GetKey(item, "menuonly", false)
+            continue
+
         label := PAL_Tidy(GetKey(item, "label", ""))
         if (label = "")
             continue
@@ -227,6 +233,8 @@ MW_FillFlat(items, needle, path) {
     for item in items {
         kind := GetKey(item, "kind", "")
         if (kind = "separator" || kind = "heading" || kind = "clipboard")
+            continue
+        if GetKey(item, "menuonly", false)
             continue
 
         label := PAL_Tidy(GetKey(item, "label", ""))
