@@ -178,7 +178,18 @@ MW_FillTree(items, parent) {
 
     for item in items {
         kind := GetKey(item, "kind", "")
-        if (kind = "separator" || kind = "clipboard")
+
+        ; A separator ends the current section. Without this, a section only
+        ; ends when the next heading starts, so anything after the LAST
+        ; heading gets swallowed into it — which is where "Search everything"
+        ; and "Settings" ended up after being moved to the bottom. Every
+        ; separator in the data sits at a group boundary, so this is safe.
+        if (kind = "separator") {
+            section := 0
+            continue
+        }
+
+        if (kind = "clipboard")
             continue
 
         ; Chrome that only makes sense in the classic popup: the app title,
