@@ -218,7 +218,7 @@ CB_Show(*) {
 CB_BuildGui() {
     global CB_Gui, CB_List, CB_Search, CB_StatusText
 
-    CB_Gui := Gui("+Resize +MinSize560x360", "Beijer.bot — Clipboard")
+    CB_Gui := Gui("+Resize +MinSize560x360", "Text Commander — Clipboard")
     CB_Gui.SetFont("s9", "Segoe UI")
     CB_Gui.OnEvent("Close", CB_Hide)
     CB_Gui.OnEvent("Escape", CB_Hide)
@@ -594,7 +594,7 @@ CB_ToggleCapture(*) {
     if (CB_Gui != "")
         CB_Refresh()
     TrayTip("Clipboard capture " (CB_Enabled ? "resumed" : "paused"),
-            "Beijer.bot", 1)
+            "Text Commander", 1)
 }
 
 CB_Hide(*) {

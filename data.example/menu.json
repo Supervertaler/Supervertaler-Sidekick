@@ -3,7 +3,7 @@
   "menu": [
     {
       "kind": "heading",
-      "label": "Beijer.bot",
+      "label": "Text Commander",
       "icon": "B.ico",
       "bold": true,
       "menuonly": true
@@ -582,7 +582,7 @@
         },
         {
           "kind": "action",
-          "label": "Reload Beijer.bot",
+          "label": "Reload Text Commander",
           "func": "ReloadBeijerBot"
         }
       ]

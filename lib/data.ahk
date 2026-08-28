@@ -34,7 +34,7 @@ LoadJsonFile(path) {
         return Jxon_Load(&txt)
     } catch Error as err {
         MsgBox("Could not read:`n" path "`n`n" err.Message,
-               "Beijer.bot", "Icon!")
+               "Text Commander", "Icon!")
         return ""
     }
 }
@@ -54,7 +54,7 @@ SaveJsonFile(path, obj) {
         return true
     } catch Error as err {
         MsgBox("Could not save:`n" path "`n`n" err.Message,
-               "Beijer.bot", "Icon!")
+               "Text Commander", "Icon!")
         return false
     }
 }

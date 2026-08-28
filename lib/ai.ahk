@@ -10,7 +10,7 @@
 ;   * Requests no longer block. The old code called WaitForResponse(), which
 ;     froze every hotkey in the script until the API replied — on a long
 ;     translation that meant a dead keyboard for half a minute. This opens the
-;     request asynchronously and polls on a timer, so Beijer.bot stays live.
+;     request asynchronously and polls on a timer, so the app stays live.
 ;
 ; Prompts are data: see the "ai" entry kind in lib/menu_builder.ahk.
 ; ===========================================================================
@@ -113,7 +113,7 @@ AI_Ask(promptText, opts := "") {
 
     if (AI_Busy) {
         if (MsgBox("A request is already running.`n`nCancel it and start "
-                   "this one?", "Beijer.bot AI", "YesNo Icon?") != "Yes")
+                   "this one?", "Text Commander AI", "YesNo Icon?") != "Yes")
             return
         AI_Abort()
     }
@@ -131,7 +131,7 @@ AI_Ask(promptText, opts := "") {
         if (selection = "")
             selection := BB_CopySelection(2)
         if (selection = "") {
-            MsgBox("Select some text first.", "Beijer.bot AI", "Icon! T2")
+            MsgBox("Select some text first.", "Text Commander AI", "Icon! T2")
             return
         }
     }
@@ -389,7 +389,7 @@ AI_ShowWindow() {
         return
     }
 
-    AI_Window := Gui("+Resize +MinSize520x300", "Beijer.bot AI")
+    AI_Window := Gui("+Resize +MinSize520x300", "Text Commander AI")
     AI_Window.SetFont("s11", "Calibri")
     AI_Window.OnEvent("Close", AI_HideWindow)
     AI_Window.OnEvent("Escape", AI_HideWindow)

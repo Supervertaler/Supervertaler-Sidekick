@@ -65,7 +65,7 @@ MW_Build() {
     global MW_Gui, MW_Search, MW_Clips, MW_Tree, MW_Status
     global MW_ClipHead, MW_MenuHead
 
-    MW_Gui := Gui("+Resize +MinSize720x420", "Beijer.bot")
+    MW_Gui := Gui("+Resize +MinSize720x420", "Text Commander")
     MW_Gui.SetFont("s9", "Segoe UI")
     MW_Gui.OnEvent("Close", MW_Hide)
     MW_Gui.OnEvent("Escape", MW_Hide)

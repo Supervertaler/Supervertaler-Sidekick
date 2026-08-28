@@ -65,7 +65,7 @@ OpenLibraryEditor(*) {
         return
     }
 
-    LE_Gui := Gui("+Resize +MinSize820x500", "Beijer.bot — Library Editor")
+    LE_Gui := Gui("+Resize +MinSize820x500", "Text Commander — Library Editor")
     LE_Gui.SetFont("s9", "Segoe UI")
     LE_Gui.OnEvent("Close", LE_OnClose)
     LE_Gui.OnEvent("Size", LE_OnSize)

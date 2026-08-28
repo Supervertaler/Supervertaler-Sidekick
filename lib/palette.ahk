@@ -249,7 +249,7 @@ PAL_KindLabel(c) {
 PAL_BuildGui() {
     global PAL_Gui, PAL_Search, PAL_List, PAL_Status
 
-    PAL_Gui := Gui("+Resize +MinSize640x380", "Beijer.bot")
+    PAL_Gui := Gui("+Resize +MinSize640x380", "Text Commander")
     PAL_Gui.SetFont("s10", "Segoe UI")
     PAL_Gui.OnEvent("Close", PAL_Hide)
     PAL_Gui.OnEvent("Escape", PAL_Hide)

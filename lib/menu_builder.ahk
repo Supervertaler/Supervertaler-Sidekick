@@ -277,7 +277,7 @@ OpenTarget(target) {
         Run(target)
     } catch Error as err {
         MsgBox("Could not open:`n" target "`n`n" err.Message,
-               "Beijer.bot", "Icon!")
+               "Text Commander", "Icon!")
     }
 }
 
@@ -289,7 +289,7 @@ RunSearch(urlTemplate, browser := "", sel := "") {
     ; does not, and grabs it at click time.
     query := Trim(sel != "" ? sel : BB_CopySelection())
     if (query = "") {
-        MsgBox("Select some text first.", "Beijer.bot", "Icon! T2")
+        MsgBox("Select some text first.", "Text Commander", "Icon! T2")
         return
     }
 
@@ -301,7 +301,7 @@ RunSearch(urlTemplate, browser := "", sel := "") {
             Run(url)
     } catch Error as err {
         MsgBox("Could not open the search:`n" url "`n`n" err.Message,
-               "Beijer.bot", "Icon!")
+               "Text Commander", "Icon!")
     }
 }
 
@@ -309,7 +309,7 @@ RunAction(name, arg := "") {
     global BeijerBotActions
     if !BeijerBotActions.Has(name) {
         MsgBox("This menu entry refers to an unknown action: " name,
-               "Beijer.bot", "Icon!")
+               "Text Commander", "Icon!")
         return
     }
     fn := BeijerBotActions[name]
@@ -320,7 +320,7 @@ RunAction(name, arg := "") {
             fn.Call()
     } catch Error as err {
         MsgBox("Action '" name "' failed:`n`n" err.Message,
-               "Beijer.bot", "Icon!")
+               "Text Commander", "Icon!")
     }
 }
 
@@ -382,6 +382,6 @@ RegisterHotstrings(list) {
             Hotstring(":" opts ":" abbr, GetKey(hs, "value", ""))
         catch Error as err
             MsgBox("Could not register hotstring '" abbr "':`n`n" err.Message,
-                   "Beijer.bot", "Icon!")
+                   "Text Commander", "Icon!")
     }
 }
