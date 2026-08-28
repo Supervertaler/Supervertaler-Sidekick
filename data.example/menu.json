@@ -570,6 +570,11 @@
           "func": "OpenHotkeyEditor"
         },
         {
+          "kind": "action",
+          "label": "Available AI models…",
+          "func": "OpenModelList"
+        },
+        {
           "kind": "separator"
         },
         {

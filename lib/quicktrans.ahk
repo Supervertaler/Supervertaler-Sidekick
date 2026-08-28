@@ -322,3 +322,164 @@ QT_Ordered() {
     }
     return out
 }
+
+
+; ===========================================================================
+; "Which model can I use?"
+;
+; Every provider publishes a models endpoint. Asking it beats reciting a list
+; that goes stale, and it answers for THIS account rather than in general —
+; model availability differs by account and tier.
+; ===========================================================================
+QT_ModelEndpoint(id) {
+    switch id {
+        case "anthropic": return "https://api.anthropic.com/v1/models"
+        case "openai":    return "https://api.openai.com/v1/models"
+        case "gemini":
+            return "https://generativelanguage.googleapis.com/v1beta/models"
+    }
+    return ""
+}
+
+; Returns a Map: "ok" (bool), "models" (array of ids), "error" (text).
+QT_FetchModels(id) {
+    out := Map("ok", false, "models", [], "error", "")
+
+    url := QT_ModelEndpoint(id)
+    if (url = "") {
+        out["error"] := "no model list for this engine"
+        return out
+    }
+
+    key := Trim(AI_Ini(SettingsFile(), "Keys", id, ""))
+    if (key = "") {
+        out["error"] := "no API key set"
+        return out
+    }
+
+    providers := AI_Providers()
+    p := providers[id]
+
+    try {
+        req := ComObject("WinHttp.WinHttpRequest.5.1")
+        req.SetTimeouts(10000, 10000, 10000, 25000)
+        req.Open("GET", url, true)
+        req.SetRequestHeader(p["auth_header"], p["auth_prefix"] key)
+        if (p["version_header"] != "")
+            req.SetRequestHeader(p["version_header"], p["version_value"])
+        req.Send()
+        req.WaitForResponse(25)
+
+        if (req.Status != 200) {
+            out["error"] := QT_StatusText(req.Status)
+            return out
+        }
+        raw := AI_ResponseText(req)
+        data := Jxon_Load(&raw)
+    } catch Error as err {
+        out["error"] := err.Message
+        return out
+    }
+
+    ids := []
+    try {
+        if (id = "gemini") {
+            ; Gemini names them "models/x" and lists what each one can do.
+            for m in data["models"] {
+                name := StrReplace(m["name"], "models/", "")
+                usable := !m.Has("supportedGenerationMethods")
+                if !usable {
+                    for meth in m["supportedGenerationMethods"] {
+                        if (meth = "generateContent")
+                            usable := true
+                    }
+                }
+                if usable
+                    ids.Push(name)
+            }
+        } else {
+            for m in data["data"] {
+                mid := m["id"]
+                ; OpenAI lists embeddings, audio and image models too; only
+                ; the chat families are any use here.
+                if (id = "openai" && !RegExMatch(mid, "^(gpt|o[0-9]|chatgpt)"))
+                    continue
+                ids.Push(mid)
+            }
+        }
+    } catch Error as err {
+        out["error"] := "unexpected reply: " err.Message
+        return out
+    }
+
+    out["ok"] := true
+    out["models"] := ids
+    return out
+}
+
+; ---------------------------------------------------------------------------
+global QTM_Gui := ""
+
+OpenModelList(*) {
+    global QTM_Gui
+
+    if (QTM_Gui != "") {
+        try QTM_Gui.Destroy()
+        QTM_Gui := ""
+    }
+
+    QTM_Gui := Gui("+Resize +MinSize520x420", "Text Commander — Available models")
+    QTM_Gui.SetFont("s9", "Segoe UI")
+    QTM_Gui.OnEvent("Close", (*) => QTM_Close())
+    QTM_Gui.OnEvent("Escape", (*) => QTM_Close())
+
+    QTM_Gui.Add("Text", "xm ym w620",
+                "Models your API keys can actually use. Put one in "
+                "settings.ini under [QuickTrans], e.g. openai_model=gpt-5-mini")
+
+    lv := QTM_Gui.Add("ListView", "xm y+8 w620 h420 -Multi",
+                      ["Engine", "Model", "In use"])
+    status := QTM_Gui.Add("Text", "xm y+8 w620", "Asking each provider…")
+    QTM_Gui.Show("w660 h520")
+
+    providers := AI_Providers()
+    total := 0
+    for id, p in providers {
+        r := QT_FetchModels(id)
+        current := QT_Model(id, p["default_model"])
+
+        if !r["ok"] {
+            lv.Add(, p["label"], "(" r["error"] ")", "")
+            continue
+        }
+        for m in r["models"] {
+            lv.Add(, p["label"], m, (m = current) ? "yes" : "")
+            total++
+        }
+    }
+
+    lv.ModifyCol(1, 130)
+    lv.ModifyCol(2, 330)
+    lv.ModifyCol(3, 60)
+    status.Value := total " models available."
+             . "  Double-click one to copy its name."
+
+    lv.OnEvent("DoubleClick", QTM_Copy)
+
+    QTM_Copy(ctrl, row) {
+        if (row = 0)
+            return
+        name := ctrl.GetText(row, 2)
+        if (SubStr(name, 1, 1) = "(")
+            return
+        A_Clipboard := name
+        status.Value := "Copied: " name
+    }
+}
+
+QTM_Close() {
+    global QTM_Gui
+    try QTM_Gui.Destroy()
+    QTM_Gui := ""
+    return true
+}

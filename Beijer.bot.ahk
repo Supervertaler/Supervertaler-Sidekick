@@ -118,6 +118,7 @@ RegisterBuiltInActions() {
     RegisterAction("OpenPalette", PAL_Show)
     RegisterAction("OpenMainWindow", MW_Show)
     RegisterAction("OpenQuickTrans", MW_ShowQuickTrans)
+    RegisterAction("OpenModelList", OpenModelList)
     RegisterAction("ReloadBeijerBot", (*) => Reload())
     RegisterAction("ToggleClipboardCapture", CB_ToggleCapture)
     RegisterAction("BoldHtml", BoldHtml)
