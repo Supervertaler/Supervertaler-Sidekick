@@ -145,6 +145,7 @@ MW_Build() {
 
     MW_QTLabel   := MW_Gui.Add("Text", "x" tx " y" ty " w60", "Source:")
     MW_QTSource  := MW_Gui.Add("Edit", "x" tx " y" (ty + 18) " w" tw " r3 Multi")
+    MW_QTSource.OnEvent("Change", (*) => MW_QTLayout())
 
     ly := ty + 76       ; the language row
     MW_QTFromLbl := MW_Gui.Add("Text", "x" tx " y" (ly + 4) " w36", "From:")
@@ -170,6 +171,7 @@ MW_Build() {
         eng := MW_Gui.Add("Text", "x" (tx + 22) " y" y " w78", "")
         box := MW_Gui.Add("Edit", "x" (tx + 104) " y" y " w" (tw - 104)
                         . " r2 Multi ReadOnly -VScroll", "")
+        box.OnEvent("Focus", MW_MakeRowFocus(A_Index))
         num.Visible := false, eng.Visible := false, box.Visible := false
         MW_QTRowCtl.Push(Map("num", num, "eng", eng, "box", box))
     }
@@ -189,6 +191,35 @@ MW_Build() {
     QT_OnUpdate := MW_RenderTranslations
 
     MW_Keys()
+}
+
+; Clicking or tabbing into a row makes it the selected one. Focus is the
+; single source of truth: the marker follows it rather than tracking a
+; separate index that can drift out of step.
+MW_MakeRowFocus(i) {
+    return (*) => MW_RowFocused(i)
+}
+
+MW_RowFocused(i) {
+    global MW_QTSel, MW_QTRows
+    if (i < 1 || i > MW_QTRows.Length)
+        return
+    if (MW_QTSel = i)
+        return
+    MW_QTSel := i
+    MW_QTMarkRows()
+}
+
+; Just the markers — cheap enough to run on every focus change, unlike a
+; full relayout which would move controls under the mouse.
+MW_QTMarkRows() {
+    global MW_QTRowCtl, MW_QTRows, MW_QTSel
+    Loop MW_QTRowCtl.Length {
+        if (A_Index > MW_QTRows.Length)
+            break
+        MW_QTRowCtl[A_Index]["num"].Value :=
+            (A_Index = MW_QTSel ? "▸" : "") A_Index
+    }
 }
 
 MW_SelectLang(ctrl, name) {
@@ -211,7 +242,7 @@ MW_ActiveTab() {
 MW_OnTabChange() {
     global MW_Clips
     if (MW_ActiveTab() = 2) {
-        MW_QTLayoutRows()
+        MW_QTLayout()
         MW_FocusResults()
     } else {
         try MW_Clips.Focus()
@@ -312,7 +343,7 @@ MW_RenderTranslations(finished := false) {
         MW_QTSel := jobs.Length
 
     MW_Gui.Opt("+OwnDialogs")
-    MW_QTLayoutRows()
+    MW_QTLayout()
 
     if (finished) {
         ; Once there is something to insert, take focus off the source box so
@@ -326,41 +357,68 @@ MW_RenderTranslations(finished := false) {
         MW_SetStatus("Translating…")
 }
 
-; Position and fill the result rows. Each translation gets as many lines as
-; it needs (up to a cap), so nothing is cut off at a column edge — which is
+; Lay out the whole QuickTrans tab: the source box grows with its text, the
+; language row follows it down, and the result rows fill what is left. Each
+; translation gets as many lines as it needs so nothing is cut off — which is
 ; the whole reason these are stacked fields rather than list rows.
-MW_QTLayoutRows() {
+MW_QTLayout() {
     global MW_QTRowCtl, MW_QTRows, MW_QTSel, MW_QT_SLOTS
-    global MW_Tabs, MW_QTSource
+    global MW_Tabs, MW_QTSource, MW_QTLabel, MW_QTFromLbl, MW_QTArrow
+    global MW_QTSrc, MW_QTTgt, MW_QTSwapBtn, MW_QTGoBtn
 
     if (MW_QTRowCtl.Length = 0)
         return
 
-    ; Work out the area available under the language row.
     MW_Tabs.GetPos(&tabX, &tabY, &tabW, &tabH)
-    left  := tabX + 8
-    width := tabW - 20
-    MW_QTSource.GetPos(&sx, &sy, &sw, &sh)
-    top   := sy + sh + 46          ; below the source box and language row
-    avail := tabY + tabH - top - 10
+    left   := tabX + 8
+    width  := tabW - 20
+    bottom := tabY + tabH - 10
+    lineH  := 15
 
-    lineH   := 15
+    ; ---- source box, sized to its contents -----------------------------
+    srcW := width
+    srcChars := Round(srcW / 6.6)
+    if (srcChars < 20)
+        srcChars := 20
+
+    text := ""
+    try text := MW_QTSource.Value
+    lines := MW_WrappedLines(text, srcChars)
+    if (lines < 3)
+        lines := 3                     ; never smaller than it started
+    if (lines > 10)
+        lines := 10                    ; past this it scrolls
+    srcH := lines * lineH + 8
+
+    y := tabY + 30
+    MW_QTLabel.Move(left, y, 60)
+    y += 18
+    MW_QTSource.Move(left, y, srcW, srcH)
+    y += srcH + 10
+
+    ; ---- language row ---------------------------------------------------
+    MW_QTFromLbl.Move(left, y + 4, 36)
+    MW_QTSrc.Move(left + 40, y, 118)
+    MW_QTArrow.Move(left + 164, y + 4, 14)
+    MW_QTTgt.Move(left + 182, y, 118)
+    MW_QTSwapBtn.Move(left + 306, y - 1, 30, 24)
+    MW_QTGoBtn.Move(left + 342, y - 1, 96, 24)
+    y += 36
+
+    ; ---- results ---------------------------------------------------------
     boxLeft := left + 104
     boxW    := width - 104
     if (boxW < 120)
         boxW := 120
-
-    ; Roughly how many characters fit on one line at this width.
     perLine := Round(boxW / 6.6)
     if (perLine < 20)
         perLine := 20
 
-    y := top
     Loop MW_QT_SLOTS {
         i := A_Index
         r := MW_QTRowCtl[i]
 
-        if (i > MW_QTRows.Length || y > tabY + tabH - 30) {
+        if (i > MW_QTRows.Length || y > bottom - 24) {
             r["num"].Visible := false
             r["eng"].Visible := false
             r["box"].Visible := false
@@ -369,21 +427,17 @@ MW_QTLayoutRows() {
 
         job := MW_QTRows[i]
         switch job["state"] {
-            case "pending": text := "…"
-            case "error":   text := "(" job["text"] ")"
-            default:        text := job["text"]
+            case "pending": rowText := "…"
+            case "error":   rowText := "(" job["text"] ")"
+            default:        rowText := job["text"]
         }
 
-        lines := Ceil(StrLen(text) / perLine)
-        if (lines < 1)
-            lines := 1
-        if (lines > 6)
-            lines := 6                    ; past this it scrolls
-        h := lines * lineH + 8
-
-        ; Do not run past the bottom of the tab.
-        if (y + h > tabY + tabH - 10)
-            h := tabY + tabH - 10 - y
+        rl := MW_WrappedLines(rowText, perLine)
+        if (rl > 6)
+            rl := 6                    ; past this the field scrolls
+        h := rl * lineH + 8
+        if (y + h > bottom)
+            h := bottom - y
         if (h < lineH + 8)
             h := lineH + 8
 
@@ -392,7 +446,7 @@ MW_QTLayoutRows() {
         r["eng"].Move(left + 22, y + 2, 78)
         r["eng"].Value := job["engine"]["label"]
         r["box"].Move(boxLeft, y, boxW, h)
-        r["box"].Value := text
+        r["box"].Value := rowText
 
         r["num"].Visible := true
         r["eng"].Visible := true
@@ -402,16 +456,38 @@ MW_QTLayoutRows() {
     }
 }
 
+; Lines a string needs at a given width, counting its own newlines too — a
+; character count alone would under-measure a multi-paragraph selection.
+MW_WrappedLines(text, perLine) {
+    if (text = "")
+        return 1
+    total := 0
+    for part in StrSplit(StrReplace(text, "`r`n", "`n"), "`n") {
+        n := Ceil(StrLen(part) / perLine)
+        total += (n < 1) ? 1 : n
+    }
+    return (total < 1) ? 1 : total
+}
+
 MW_QTMove(delta) {
-    global MW_QTRows, MW_QTSel
+    global MW_QTRows, MW_QTSel, MW_QTRowCtl
     if (MW_QTRows.Length = 0)
         return
-    MW_QTSel += delta
-    if (MW_QTSel < 1)
-        MW_QTSel := 1
-    if (MW_QTSel > MW_QTRows.Length)
-        MW_QTSel := MW_QTRows.Length
-    MW_QTLayoutRows()
+
+    target := MW_QTSel + delta
+    if (target < 1)
+        target := 1
+    if (target > MW_QTRows.Length)
+        target := MW_QTRows.Length
+    if (target = MW_QTSel)
+        return
+
+    MW_QTSel := target
+    MW_QTMarkRows()
+
+    ; Move the focus ring too, so there is one indicator rather than a marker
+    ; on one row and a focus ring stranded on another.
+    try MW_QTRowCtl[target]["box"].Focus()
 }
 
 ; True while the caret is in the source box, so digits and arrows typed there
