@@ -35,8 +35,17 @@ global MW_Tabs      := ""
 global MW_QTSource  := ""      ; editable source text
 global MW_QTSrc     := ""      ; source language
 global MW_QTTgt     := ""      ; target language
-global MW_QTList    := ""
 global MW_QTRows    := []      ; jobs in row order
+global MW_QTRowCtl  := []      ; the reusable result-row controls
+global MW_QTSel     := 1       ; which result row is selected
+global MW_QTLabel   := ""
+global MW_QTFromLbl := ""
+global MW_QTArrow   := ""
+global MW_QTSwapBtn := ""
+global MW_QTGoBtn   := ""
+
+; Enough slots for every engine plus room to add a few.
+MW_QT_SLOTS := 8
 
 MW_HEAD_ON  := "c0A5FA0"       ; focused column header
 MW_HEAD_OFF := "c606060"
@@ -66,11 +75,11 @@ MW_Show(tab := 1) {
     try MW_Search.Value := ""
     MW_RefreshClips()
     MW_RefreshTree()
-    MW_Gui.Show()
+    MW_ShowRestored()
 
     if (tab = 2) {
         MW_Tabs.Value := 2
-        try MW_QTList.Focus()
+        try MW_QTSource.Focus()
         MW_MarkFocus("clips")
     } else {
         ; Land on the clipboard, not the search box: the common case is
@@ -100,7 +109,9 @@ MW_ShowQuickTrans(*) {
 MW_Build() {
     global MW_Gui, MW_Search, MW_Clips, MW_Tree, MW_Status
     global MW_ClipHead, MW_MenuHead
-    global MW_Tabs, MW_QTSource, MW_QTSrc, MW_QTTgt, MW_QTList
+    global MW_Tabs, MW_QTSource, MW_QTSrc, MW_QTTgt
+    global MW_QTRowCtl, MW_QTLabel, MW_QTFromLbl, MW_QTArrow
+    global MW_QTSwapBtn, MW_QTGoBtn, MW_QT_SLOTS
     global QT_OnUpdate
 
     MW_Gui := Gui("+Resize +MinSize720x420", "Text Commander")
@@ -130,21 +141,44 @@ MW_Build() {
     try MW_Clips.OnNotify(-12, MW_CustomDraw)   ; grey out pasted entries
 
     MW_Tabs.UseTab(2)
-    MW_Gui.Add("Text", "xp+8 yp+28 w60", "Source:")
-    MW_QTSource := MW_Gui.Add("Edit", "xp yp+18 w524 r3 Multi")
 
-    MW_Gui.Add("Text", "xp yp+56 w34", "From:")
-    MW_QTSrc := MW_Gui.Add("DropDownList", "x+2 yp-4 w120", QT_LangNames())
-    MW_Gui.Add("Text", "x+8 yp+4 w16", "→")
-    MW_QTTgt := MW_Gui.Add("DropDownList", "x+2 yp-4 w120", QT_LangNames())
-    MW_Gui.Add("Button", "x+6 yp-1 w28", "⇄")
-        .OnEvent("Click", (*) => MW_QTSwap())
-    MW_Gui.Add("Button", "x+8 yp w96", "Translate")
-        .OnEvent("Click", (*) => MW_QTTranslate())
+    ; Explicit coordinates rather than a chain of xp/yp. Relative positioning
+    ; inside a tab control drifts, which is what left a stray box floating
+    ; beside the language row.
+    tx := 20            ; left edge inside the tab
+    ty := 88            ; below the tab strip
+    tw := 512
 
-    MW_QTList := MW_Gui.Add("ListView", "xm+20 y+10 w524 h258 -Multi",
-                            ["#", "Engine", "Translation"])
-    MW_QTList.OnEvent("DoubleClick", (*) => MW_QTInsertSelected())
+    MW_QTLabel   := MW_Gui.Add("Text", "x" tx " y" ty " w60", "Source:")
+    MW_QTSource  := MW_Gui.Add("Edit", "x" tx " y" (ty + 18) " w" tw " r3 Multi")
+
+    ly := ty + 76       ; the language row
+    MW_QTFromLbl := MW_Gui.Add("Text", "x" tx " y" (ly + 4) " w36", "From:")
+    MW_QTSrc     := MW_Gui.Add("DropDownList", "x" (tx + 40) " y" ly " w118",
+                               QT_LangNames())
+    MW_QTArrow   := MW_Gui.Add("Text", "x" (tx + 164) " y" (ly + 4) " w14", "→")
+    MW_QTTgt     := MW_Gui.Add("DropDownList", "x" (tx + 182) " y" ly " w118",
+                               QT_LangNames())
+    MW_QTSwapBtn := MW_Gui.Add("Button", "x" (tx + 306) " y" (ly - 1) " w30 h24",
+                               "⇄")
+    MW_QTSwapBtn.OnEvent("Click", (*) => MW_QTSwap())
+    MW_QTGoBtn   := MW_Gui.Add("Button", "x" (tx + 342) " y" (ly - 1) " w96 h24",
+                               "Translate")
+    MW_QTGoBtn.OnEvent("Click", (*) => MW_QTTranslate())
+
+    ; Results are a stack of full-text fields, not list rows: a translation
+    ; that is cut off at the column edge is no use for judging it against the
+    ; others. Slots are created once and shown or hidden as engines report.
+    MW_QTRowCtl := []
+    Loop MW_QT_SLOTS {
+        y := ty + 116 + (A_Index - 1) * 10       ; real positions come from
+        num := MW_Gui.Add("Text", "x" tx " y" y " w18 Right", A_Index "")
+        eng := MW_Gui.Add("Text", "x" (tx + 22) " y" y " w78", "")
+        box := MW_Gui.Add("Edit", "x" (tx + 104) " y" y " w" (tw - 104)
+                        . " r2 Multi ReadOnly -VScroll", "")
+        num.Visible := false, eng.Visible := false, box.Visible := false
+        MW_QTRowCtl.Push(Map("num", num, "eng", eng, "box", box))
+    }
 
     MW_SelectLang(MW_QTSrc, QT_Setting("SourceLang", "Dutch"))
     MW_SelectLang(MW_QTTgt, QT_Setting("TargetLang", "English"))
@@ -181,9 +215,10 @@ MW_ActiveTab() {
 }
 
 MW_OnTabChange() {
-    global MW_Clips, MW_QTList
+    global MW_Clips, MW_QTSource
     if (MW_ActiveTab() = 2) {
-        try MW_QTList.Focus()
+        try MW_QTSource.Focus()
+        MW_QTLayoutRows()
     } else {
         try MW_Clips.Focus()
     }
@@ -272,39 +307,112 @@ MW_QTSwap() {
 }
 
 MW_RenderTranslations(finished := false) {
-    global MW_QTList, MW_QTRows
+    global MW_QTRowCtl, MW_QTRows, MW_QTSel, MW_QT_SLOTS, MW_Gui
 
     jobs := QT_Ordered()
+    MW_QTRows := jobs
 
-    MW_QTList.Opt("-Redraw")
-    MW_QTList.Delete()
-    MW_QTRows := []
+    if (MW_QTSel < 1)
+        MW_QTSel := 1
+    if (MW_QTSel > jobs.Length)
+        MW_QTSel := jobs.Length
 
-    for job in jobs {
-        n := MW_QTRows.Length + 1
-        switch job["state"] {
-            case "pending": shown := "…"
-            case "error":   shown := "(" job["text"] ")"
-            default:        shown := job["text"]
-        }
-        MW_QTList.Add(, n, job["engine"]["label"],
-                        StrReplace(StrReplace(shown, "`r", " "), "`n", " "))
-        MW_QTRows.Push(job)
-    }
-
-    MW_QTList.ModifyCol(1, 26)
-    MW_QTList.ModifyCol(2, 90)
-    MW_QTList.ModifyCol(3, 400)
-    MW_QTList.Opt("+Redraw")
-
-    if (MW_QTRows.Length > 0 && MW_QTList.GetNext(0) = 0)
-        MW_QTList.Modify(1, "Select Focus")
+    MW_Gui.Opt("+OwnDialogs")
+    MW_QTLayoutRows()
 
     if (finished)
         MW_SetStatus("Done.  1-9 insert  ·  ↑↓ choose  ·  Enter insert  ·  "
                    . "Ctrl+Enter re-translate  ·  → menu  ·  Esc close")
     else
         MW_SetStatus("Translating…")
+}
+
+; Position and fill the result rows. Each translation gets as many lines as
+; it needs (up to a cap), so nothing is cut off at a column edge — which is
+; the whole reason these are stacked fields rather than list rows.
+MW_QTLayoutRows() {
+    global MW_QTRowCtl, MW_QTRows, MW_QTSel, MW_QT_SLOTS
+    global MW_Tabs, MW_QTSource
+
+    if (MW_QTRowCtl.Length = 0)
+        return
+
+    ; Work out the area available under the language row.
+    MW_Tabs.GetPos(&tabX, &tabY, &tabW, &tabH)
+    left  := tabX + 8
+    width := tabW - 20
+    MW_QTSource.GetPos(&sx, &sy, &sw, &sh)
+    top   := sy + sh + 46          ; below the source box and language row
+    avail := tabY + tabH - top - 10
+
+    lineH   := 15
+    boxLeft := left + 104
+    boxW    := width - 104
+    if (boxW < 120)
+        boxW := 120
+
+    ; Roughly how many characters fit on one line at this width.
+    perLine := Round(boxW / 6.6)
+    if (perLine < 20)
+        perLine := 20
+
+    y := top
+    Loop MW_QT_SLOTS {
+        i := A_Index
+        r := MW_QTRowCtl[i]
+
+        if (i > MW_QTRows.Length || y > tabY + tabH - 30) {
+            r["num"].Visible := false
+            r["eng"].Visible := false
+            r["box"].Visible := false
+            continue
+        }
+
+        job := MW_QTRows[i]
+        switch job["state"] {
+            case "pending": text := "…"
+            case "error":   text := "(" job["text"] ")"
+            default:        text := job["text"]
+        }
+
+        lines := Ceil(StrLen(text) / perLine)
+        if (lines < 1)
+            lines := 1
+        if (lines > 6)
+            lines := 6                    ; past this it scrolls
+        h := lines * lineH + 8
+
+        ; Do not run past the bottom of the tab.
+        if (y + h > tabY + tabH - 10)
+            h := tabY + tabH - 10 - y
+        if (h < lineH + 8)
+            h := lineH + 8
+
+        r["num"].Move(left, y + 2, 18)
+        r["num"].Value := (i = MW_QTSel ? "▸" : "") i
+        r["eng"].Move(left + 22, y + 2, 78)
+        r["eng"].Value := job["engine"]["label"]
+        r["box"].Move(boxLeft, y, boxW, h)
+        r["box"].Value := text
+
+        r["num"].Visible := true
+        r["eng"].Visible := true
+        r["box"].Visible := true
+
+        y += h + 6
+    }
+}
+
+MW_QTMove(delta) {
+    global MW_QTRows, MW_QTSel
+    if (MW_QTRows.Length = 0)
+        return
+    MW_QTSel += delta
+    if (MW_QTSel < 1)
+        MW_QTSel := 1
+    if (MW_QTSel > MW_QTRows.Length)
+        MW_QTSel := MW_QTRows.Length
+    MW_QTLayoutRows()
 }
 
 ; True while the caret is in the source box, so digits and arrows typed there
@@ -326,11 +434,10 @@ MW_QTInsertRow(n) {
 }
 
 MW_QTInsertSelected() {
-    global MW_QTList, MW_QTRows
-    row := MW_QTList.GetNext(0)
-    if (row = 0 || row > MW_QTRows.Length)
+    global MW_QTRows, MW_QTSel
+    if (MW_QTSel < 1 || MW_QTSel > MW_QTRows.Length)
         return
-    MW_QTInsert(MW_QTRows[row])
+    MW_QTInsert(MW_QTRows[MW_QTSel])
 }
 
 MW_QTInsert(job) {
@@ -685,9 +792,13 @@ MW_FocusSearch() {
 }
 
 MW_Down() {
-    global MW_Search
+    global MW_Search, MW_Tree
     if MW_FocusedIs(MW_Search) {
         MW_FocusClips()
+        return
+    }
+    if (MW_ActiveTab() = 2 && !MW_FocusedIs(MW_Tree) && !MW_EditingSource()) {
+        MW_QTMove(1)
         return
     }
     Send("{Down}")          ; our own Send does not retrigger our hotkeys
@@ -707,6 +818,10 @@ MW_Up() {
         MW_FocusSearch()
         return
     }
+    if (MW_ActiveTab() = 2 && !MW_FocusedIs(MW_Tree) && !MW_EditingSource()) {
+        MW_QTMove(-1)
+        return
+    }
     Send("{Up}")
 }
 
@@ -717,7 +832,7 @@ MW_Right() {
         Send("{Right}")                 ; move the caret, not the pane
         return
     }
-    if (MW_FocusedIs(MW_Clips) || MW_FocusedIs(MW_QTList)) {
+    if (MW_FocusedIs(MW_Clips) || MW_ActiveTab() = 2) {
         MW_FocusTree()
         return
     }
@@ -742,7 +857,7 @@ MW_Left() {
         Send("{Left}")
         return
     }
-    if (MW_FocusedIs(MW_Clips) || MW_FocusedIs(MW_QTList))
+    if (MW_FocusedIs(MW_Clips) || (MW_ActiveTab() = 2 && !MW_FocusedIs(MW_Tree)))
         return
 
     ; In the tree: close, then climb, then cross back to the left pane.
@@ -765,9 +880,9 @@ MW_Left() {
 
 ; Back to whichever tab is on show, not always the clipboard.
 MW_FocusLeft() {
-    global MW_QTList
+    global MW_QTSource
     if (MW_ActiveTab() = 2) {
-        try MW_QTList.Focus()
+        try MW_QTSource.Focus()
         MW_MarkFocus("clips")
         return
     }
@@ -775,11 +890,11 @@ MW_FocusLeft() {
 }
 
 MW_TogglePane() {
-    global MW_Clips, MW_QTList
-    if (MW_FocusedIs(MW_Clips) || MW_FocusedIs(MW_QTList))
-        MW_FocusTree()
-    else
+    global MW_Clips, MW_Tree
+    if (MW_FocusedIs(MW_Tree))
         MW_FocusLeft()
+    else
+        MW_FocusTree()
 }
 
 ; ---------------------------------------------------------------------------
@@ -871,7 +986,7 @@ MW_SectionLegend() {
 }
 
 MW_Activate() {
-    global MW_Search, MW_Clips, MW_Tree, MW_QTList
+    global MW_Search, MW_Clips, MW_Tree
 
     if MW_EditingSource() {
         MW_QTTranslate()
@@ -881,7 +996,7 @@ MW_Activate() {
         MW_FocusClips()
         return
     }
-    if MW_FocusedIs(MW_QTList) {
+    if (MW_ActiveTab() = 2 && !MW_FocusedIs(MW_Tree)) {
         MW_QTInsertSelected()
         return
     }
@@ -946,14 +1061,86 @@ MW_RunTree() {
 
 MW_Hide(*) {
     global MW_Gui
+    MW_SaveGeometry()
     try MW_Gui.Hide()
     return true
+}
+
+; ---------------------------------------------------------------------------
+; Remember where the window was and how big, so resizing it is a decision you
+; make once rather than every time it opens.
+; ---------------------------------------------------------------------------
+MW_ShowRestored() {
+    global MW_Gui
+
+    x := QT_Int(AI_Ini(SettingsFile(), "Window", "X", ""), -99999)
+    y := QT_Int(AI_Ini(SettingsFile(), "Window", "Y", ""), -99999)
+    w := QT_Int(AI_Ini(SettingsFile(), "Window", "W", ""), 0)
+    h := QT_Int(AI_Ini(SettingsFile(), "Window", "H", ""), 0)
+
+    if (w < 400 || h < 300) {
+        MW_Gui.Show("w1040 h620")
+        return
+    }
+
+    ; Gui.Show scales its arguments by the display's DPI while WinGetPos
+    ; reports raw pixels, so saving one and restoring through the other makes
+    ; the window grow by the scaling factor every time it is reopened - 25%
+    ; a go on a 125% display. Show it first, then place it with WinMove,
+    ; which speaks the same raw pixels the geometry was saved in.
+    MW_Gui.Show("Hide")
+
+    ; A saved position from a monitor that is no longer attached would put the
+    ; window somewhere unreachable.
+    if (x = -99999 || y = -99999 || !MW_OnAnyScreen(x, y, w, h)) {
+        try WinMove(, , w, h, "ahk_id " MW_Gui.Hwnd)
+        MW_Gui.Show()
+        return
+    }
+    try WinMove(x, y, w, h, "ahk_id " MW_Gui.Hwnd)
+    MW_Gui.Show()
+}
+
+MW_OnAnyScreen(x, y, w, h) {
+    ; Just needs the title bar to be somewhere clickable.
+    Loop MonitorGetCount() {
+        MonitorGetWorkArea(A_Index, &l, &tp, &r, &b)
+        if (x + w > l && x < r && y + 30 > tp && y < b)
+            return true
+    }
+    return false
+}
+
+MW_SaveGeometry() {
+    global MW_Gui
+    if (MW_Gui = "")
+        return
+    try {
+        if (WinGetMinMax("ahk_id " MW_Gui.Hwnd) != 0)
+            return              ; do not save a maximised or minimised size
+        ; WinGetPos, not Gui.GetPos: raw screen pixels, matching WinMove.
+        WinGetPos(&x, &y, &w, &h, "ahk_id " MW_Gui.Hwnd)
+        if (w < 400 || h < 300)
+            return
+        ini := SettingsFile()
+        IniWrite(x, ini, "Window", "X")
+        IniWrite(y, ini, "Window", "Y")
+        IniWrite(w, ini, "Window", "W")
+        IniWrite(h, ini, "Window", "H")
+    }
+}
+
+QT_Int(v, default) {
+    v := Trim(v "")
+    if (v = "" || !RegExMatch(v, "^-?\d+$"))
+        return default
+    return v + 0
 }
 
 MW_OnSize(thisGui, minMax, width, height) {
     global MW_Search, MW_Clips, MW_Tree, MW_Status
     global MW_ClipHead, MW_MenuHead
-    global MW_Tabs, MW_QTSource, MW_QTList
+    global MW_Tabs, MW_QTSource
     if (minMax = -1)
         return
 
@@ -982,9 +1169,7 @@ MW_OnSize(thisGui, minMax, width, height) {
 
         ; Tab 2: source box and language row are fixed height, the results
         ; list takes whatever is left.
-        MW_QTSource.Move(, , inner)
-        MW_QTList.Move(, , inner, h - 130)
-        MW_QTList.ModifyCol(3, inner - 130)
+        MW_QTSource.Move(, , inner - 8)
 
         MW_Tree.Move(pad + leftW + gap, , rightW, h)
         MW_Status.Move(, , width - pad * 2)
