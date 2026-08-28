@@ -42,8 +42,8 @@ global MW_QTArrow   := ""
 global MW_QTSwapBtn := ""
 global MW_QTGoBtn   := ""
 
-; Enough slots for every engine plus room to add a few.
-MW_QT_SLOTS := 8
+; A ceiling only, so a bad engine table cannot spawn controls forever.
+MW_QT_MAXROWS := 20
 
 
 ; ---------------------------------------------------------------------------
@@ -106,7 +106,7 @@ MW_Build() {
     global MW_Gui, MW_Search, MW_Clips, MW_Tree, MW_Status
     global MW_Tabs, MW_QTSource, MW_QTSrc, MW_QTTgt
     global MW_QTRowCtl, MW_QTLabel, MW_QTFromLbl, MW_QTArrow
-    global MW_QTSwapBtn, MW_QTGoBtn, MW_QT_SLOTS
+    global MW_QTSwapBtn, MW_QTGoBtn
     global QT_OnUpdate
 
     MW_Gui := Gui("+Resize +MinSize720x420", "Text Commander")
@@ -162,19 +162,10 @@ MW_Build() {
     MW_QTGoBtn.OnEvent("Click", (*) => MW_QTTranslate())
 
     ; Results are a stack of full-text fields, not list rows: a translation
-    ; that is cut off at the column edge is no use for judging it against the
-    ; others. Slots are created once and shown or hidden as engines report.
+    ; cut off at a column edge is no use for judging it against the others.
+    ; Rows are created on demand, so adding engines later needs no constant
+    ; kept in step with the engine table.
     MW_QTRowCtl := []
-    Loop MW_QT_SLOTS {
-        y := ty + 116 + (A_Index - 1) * 10       ; real positions come from
-        num := MW_Gui.Add("Text", "x" tx " y" y " w18 Right", A_Index "")
-        eng := MW_Gui.Add("Text", "x" (tx + 22) " y" y " w78", "")
-        box := MW_Gui.Add("Edit", "x" (tx + 104) " y" y " w" (tw - 104)
-                        . " r2 Multi ReadOnly -VScroll", "")
-        box.OnEvent("Focus", MW_MakeRowFocus(A_Index))
-        num.Visible := false, eng.Visible := false, box.Visible := false
-        MW_QTRowCtl.Push(Map("num", num, "eng", eng, "box", box))
-    }
 
     MW_SelectLang(MW_QTSrc, QT_Setting("SourceLang", "Dutch"))
     MW_SelectLang(MW_QTTgt, QT_Setting("TargetLang", "English"))
@@ -191,6 +182,31 @@ MW_Build() {
     QT_OnUpdate := MW_RenderTranslations
 
     MW_Keys()
+}
+
+; Create result rows up to the number asked for. New controls must be added
+; while tab 2 is the active target, or they would land on the clipboard tab.
+MW_QTEnsureSlots(n) {
+    global MW_QTRowCtl, MW_Tabs, MW_Gui, MW_QT_MAXROWS
+
+    if (n > MW_QT_MAXROWS)
+        n := MW_QT_MAXROWS
+    if (MW_QTRowCtl.Length >= n)
+        return
+
+    MW_Tabs.UseTab(2)
+    while (MW_QTRowCtl.Length < n) {
+        i := MW_QTRowCtl.Length + 1
+        num := MW_Gui.Add("Text", "x20 y0 w18 Right", i "")
+        eng := MW_Gui.Add("Text", "x42 y0 w78", "")
+        box := MW_Gui.Add("Edit", "x124 y0 w300 r2 Multi ReadOnly -VScroll", "")
+        box.OnEvent("Focus", MW_MakeRowFocus(i))
+        num.Visible := false
+        eng.Visible := false
+        box.Visible := false
+        MW_QTRowCtl.Push(Map("num", num, "eng", eng, "box", box))
+    }
+    MW_Tabs.UseTab()
 }
 
 ; Clicking or tabbing into a row makes it the selected one. Focus is the
@@ -332,7 +348,7 @@ MW_QTSwap() {
 }
 
 MW_RenderTranslations(finished := false) {
-    global MW_QTRowCtl, MW_QTRows, MW_QTSel, MW_QT_SLOTS, MW_Gui
+    global MW_QTRowCtl, MW_QTRows, MW_QTSel, MW_Gui
 
     jobs := QT_Ordered()
     MW_QTRows := jobs
@@ -351,7 +367,7 @@ MW_RenderTranslations(finished := false) {
         if MW_EditingSource()
             MW_FocusResults()
         MW_SetStatus("Done.  1-9 insert  ·  ↑↓ choose  ·  Enter insert  ·  "
-                   . "Ctrl+Enter re-translate  ·  → menu  ·  Esc close")
+                   . "Ctrl+Enter re-translate  ·  Ctrl+C copy  ·  Esc close")
     }
     else
         MW_SetStatus("Translating…")
@@ -362,12 +378,13 @@ MW_RenderTranslations(finished := false) {
 ; translation gets as many lines as it needs so nothing is cut off — which is
 ; the whole reason these are stacked fields rather than list rows.
 MW_QTLayout() {
-    global MW_QTRowCtl, MW_QTRows, MW_QTSel, MW_QT_SLOTS
+    global MW_QTRowCtl, MW_QTRows, MW_QTSel
     global MW_Tabs, MW_QTSource, MW_QTLabel, MW_QTFromLbl, MW_QTArrow
     global MW_QTSrc, MW_QTTgt, MW_QTSwapBtn, MW_QTGoBtn
 
-    if (MW_QTRowCtl.Length = 0)
-        return
+    ; Make sure there is a row for every engine that reported. Doing it here
+    ; means adding an engine needs nothing else changed.
+    MW_QTEnsureSlots(MW_QTRows.Length)
 
     MW_Tabs.GetPos(&tabX, &tabY, &tabW, &tabH)
     left   := tabX + 8
@@ -414,7 +431,7 @@ MW_QTLayout() {
     if (perLine < 20)
         perLine := 20
 
-    Loop MW_QT_SLOTS {
+    Loop MW_QTRowCtl.Length {
         i := A_Index
         r := MW_QTRowCtl[i]
 
@@ -513,6 +530,45 @@ MW_QTInsertSelected() {
     if (MW_QTSel < 1 || MW_QTSel > MW_QTRows.Length)
         return
     MW_QTInsert(MW_QTRows[MW_QTSel])
+}
+
+; Ctrl+C copies whatever is currently selected — a translation on the
+; QuickTrans tab, a clip on the clipboard tab — rather than whatever happens
+; to be highlighted inside a control. Anywhere else it falls through to a
+; normal copy, so selecting text in the source box and copying still works.
+MW_Copy() {
+    global MW_QTRows, MW_QTSel, MW_Shown, MW_Clips, MW_Tree
+
+    if (MW_EditingSource() || MW_FocusedIs(MW_Tree)) {
+        Send("^c")
+        return
+    }
+
+    if (MW_ActiveTab() = 2) {
+        if (MW_QTSel < 1 || MW_QTSel > MW_QTRows.Length)
+            return
+        job := MW_QTRows[MW_QTSel]
+        if (job["state"] != "done") {
+            MW_SetStatus("That row has nothing to copy yet.")
+            return
+        }
+        ; A deliberate copy, so let it enter the clipboard history the way any
+        ; other Ctrl+C would.
+        A_Clipboard := job["text"]
+        MW_SetStatus("Copied " job["engine"]["label"] "'s translation.")
+        return
+    }
+
+    if MW_FocusedIs(MW_Clips) {
+        row := MW_Clips.GetNext(0)
+        if (row = 0 || row > MW_Shown.Length)
+            return
+        A_Clipboard := GetKey(MW_Shown[row], "text", "")
+        MW_SetStatus("Copied.")
+        return
+    }
+
+    Send("^c")
 }
 
 MW_QTInsert(job) {
@@ -768,6 +824,7 @@ MW_Keys() {
     Hotkey("^1",          (*) => MW_GoTab(1),   "On")
     Hotkey("^2",          (*) => MW_GoTab(2),   "On")
     Hotkey("^Enter",      (*) => MW_QTTranslate(), "On")
+    Hotkey("^c",          (*) => MW_Copy(), "On")
 
     ; Plain digits insert a translation, but only on the QuickTrans tab and
     ; only when the caret is not in the source box.
