@@ -82,6 +82,9 @@ CB_OnChange(dataType) {
     if (!CB_Enabled || dataType != 1)      ; 1 = text
         return
 
+    if CB_CapturePaused()
+        return
+
     if CB_ForegroundExcluded()
         return
 
@@ -116,6 +119,68 @@ CB_OnChange(dataType) {
     CB_Save()
     if (CB_Gui != "")
         CB_Refresh()
+}
+
+; ---------------------------------------------------------------------------
+; External pause.
+;
+; A test that checks "does Ctrl+C copy the right thing" has to write to the
+; real clipboard, and a running copy of this app will happily record whatever
+; the test writes. Settings are read once at startup, so flipping Enabled in
+; settings.ini cannot reach an instance that is already running - hence a
+; file the watcher checks each time instead.
+;
+; The lock carries the time it was taken and is ignored once stale, so a test
+; that dies without cleaning up cannot leave capture off forever.
+; ---------------------------------------------------------------------------
+CB_PauseFile() {
+    return DataFile("capture.paused")
+}
+
+CB_PAUSE_MINUTES := 10
+
+CB_CapturePaused() {
+    global CB_PAUSE_MINUTES
+
+    f := CB_PauseFile()
+    if !FileExist(f)
+        return false
+
+    stamp := ""
+    try stamp := Trim(FileRead(f, "UTF-8"))
+    if (stamp = "")
+        return true                     ; no timestamp: treat as paused
+
+    ; DateDiff throws on anything that is not a timestamp; a malformed lock
+    ; should not wedge capture off, so treat it as expired.
+    try {
+        if (DateDiff(A_Now, stamp, "Minutes") > CB_PAUSE_MINUTES) {
+            try FileDelete(f)
+            return false
+        }
+    } catch {
+        try FileDelete(f)
+        return false
+    }
+    return true
+}
+
+CB_PauseCapture() {
+    f := CB_PauseFile()
+    try {
+        if FileExist(f)
+            FileDelete(f)
+        FileAppend(A_Now, f, "UTF-8-RAW")
+        return true
+    }
+    return false
+}
+
+CB_ResumeCapture() {
+    try {
+        if FileExist(CB_PauseFile())
+            FileDelete(CB_PauseFile())
+    }
 }
 
 ; True when the window that owns the copy is on the exclusion list.

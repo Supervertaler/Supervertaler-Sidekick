@@ -7,6 +7,9 @@
 # ---------------------------------------------------------------------------
 /data/
 
+# Test lock: pauses clipboard capture in a running instance
+data/capture.paused
+
 # API keys and other local settings
 *.ini
 !*.example.ini
