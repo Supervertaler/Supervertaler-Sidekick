@@ -28,6 +28,11 @@ if !A_IsAdmin {
 #Include "lib\hotkeys.ahk"
 #Include "lib\editor.ahk"
 #Include "lib\providers.ahk"
+#Include "lib\expander.ahk"
+; Generated from data/expansions.json. Optional: a fresh
+; install has not written one yet, and the script has to start
+; anyway so the editor can create it.
+#Include *i "data\expansions.gen.ahk"
 Persistent
 TraySetIcon(A_ScriptDir "\B.ico")
 
@@ -84,6 +89,12 @@ NOP(*) {
 
 RegisterBuiltInActions()
 
+; The expansions are compiled into an included script, so a change to the data
+; can only take effect after a restart. Checking here means an edit made in
+; another instance, or by hand, is picked up on the next start rather than
+; silently ignored.
+EX_EnsureFresh()
+
 global BeijerBotData := LoadMenuData()
 global MenuPopup     := BuildMenuFromData(BeijerBotData["menu"])
 RegisterHotstrings(BeijerBotData["hotstrings"])
@@ -120,6 +131,7 @@ RegisterBuiltInActions() {
     RegisterAction("OpenMainWindow", MW_Show)
     RegisterAction("OpenQuickTrans", MW_ShowQuickTrans)
     RegisterAction("OpenProviderSettings", OpenProviderSettings)
+    RegisterAction("OpenExpansionEditor", OpenExpansionEditor)
     RegisterAction("ReloadBeijerBot", (*) => Reload())
     RegisterAction("ToggleClipboardCapture", CB_ToggleCapture)
     RegisterAction("BoldHtml", BoldHtml)

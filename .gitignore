@@ -21,3 +21,10 @@ Thumbs.db
 
 # Local reference material, not part of the project
 /_refs/
+
+# Personal scripts kept in this folder for reference, not part of the project.
+# AutoCorrect.ahk's contents now live in data/expansions.json; AHK.ahk holds
+# machine-specific remaps. Both carry personal snippets, and this repo is
+# public.
+/AutoCorrect.ahk
+/AHK.ahk

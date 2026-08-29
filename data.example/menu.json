@@ -571,6 +571,11 @@
         },
         {
           "kind": "action",
+          "label": "Text expansions…",
+          "func": "OpenExpansionEditor"
+        },
+        {
+          "kind": "action",
           "label": "AI providers & keys…",
           "func": "OpenProviderSettings"
         },
