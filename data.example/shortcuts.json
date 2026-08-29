@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "shortcuts": [
+    {
+      "label": "Beijerterm.com",
+      "key": "^!b",
+      "kind": "search",
+      "url": "https://beijerterm.com/?q={q}"
+    }
+  ]
+}
