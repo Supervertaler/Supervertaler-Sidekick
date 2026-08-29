@@ -26,6 +26,7 @@ if !A_IsAdmin {
 #Include "lib\mainwindow.ahk"
 #Include "lib\quicktrans.ahk"
 #Include "lib\hotkeys.ahk"
+#Include "lib\shortcuts.ahk"
 #Include "lib\editor.ahk"
 #Include "lib\providers.ahk"
 #Include "lib\expander.ahk"
@@ -104,6 +105,9 @@ CB_Init()
 
 ; Bindings come from settings.ini (see lib\hotkeys.ahk).
 RegisterConfiguredHotkeys()
+
+; And the ones the user made themselves (see lib\shortcuts.ahk).
+RegisterUserShortcuts()
 
 ; Rebuild anything that changes between openings, then show the menu.
 ShowMainMenu(x := unset, y := unset) {
@@ -225,25 +229,6 @@ ClipboardPasteSentenceCase(*)    {      ; Converts the selected text to sentence
         return
     SendInput("^v")
     Sleep(500)
-}
-
-; ---------------------------------------------------------------------------
-; Put text either side of the selection.
-;
-; Every one of these used to copy for itself with Send("^c") and a Sleep, and
-; every one had the same two faults: no ClipWait, so a slow application meant
-; wrapping whatever happened to be on the clipboard already; and no wait for
-; the shortcut's own modifiers, so Ctrl+Shift+' sent Ctrl+Shift+C, which
-; almost nothing treats as copy. SK_CopySelection handles both.
-; ---------------------------------------------------------------------------
-SK_WrapSelection(before, after) {
-    text := SK_CopySelection(1)
-    if (text = "")
-        return
-    A_Clipboard := before text after
-    if !ClipWait(1, 0)
-        return
-    Send("^v")
 }
 
 ^+'::SingleCurlyQuotes()

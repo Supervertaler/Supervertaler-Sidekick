@@ -239,6 +239,10 @@ ExecuteEntry(item, sel := "") {
         case "ai":
             RunAIEntry(item, sel)
 
+        case "wrap":
+            SK_WrapSelection(GetKey(item, "before", ""),
+                             GetKey(item, "after", ""))
+
         case "action":
             RunAction(GetKey(item, "func", ""), GetKey(item, "arg", ""))
     }
@@ -348,6 +352,25 @@ SK_CopySelection(timeoutSec := 1) {
     if !ClipWait(timeoutSec, 0)
         return ""
     return A_Clipboard
+}
+
+; ---------------------------------------------------------------------------
+; Put text either side of the selection.
+;
+; Every one of these used to copy for itself with Send("^c") and a Sleep, and
+; every one had the same two faults: no ClipWait, so a slow application meant
+; wrapping whatever happened to be on the clipboard already; and no wait for
+; the shortcut's own modifiers, so Ctrl+Shift+' sent Ctrl+Shift+C, which
+; almost nothing treats as copy. SK_CopySelection handles both.
+; ---------------------------------------------------------------------------
+SK_WrapSelection(before, after) {
+    text := SK_CopySelection(1)
+    if (text = "")
+        return
+    A_Clipboard := before text after
+    if !ClipWait(1, 0)
+        return
+    Send("^v")
 }
 
 ; Percent-encode a string for use in a URL.
