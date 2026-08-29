@@ -130,6 +130,7 @@ RegisterBuiltInActions() {
     RegisterAction("DoubleCurlyQuotes", DoubleCurlyQuotes)
     RegisterAction("DoubleToSingleQuotes", DoubleToSingleQuotes)
     RegisterAction("EditBeijerBot", EditBeijerBot)
+    RegisterAction("GoogleSearch", GoogleSearch)
     RegisterAction("Grammarly", Grammarly)
     RegisterAction("LogiTerm", LogiTerm)
     RegisterAction("MicrosoftTerminologySearch", MicrosoftTerminologySearch)
@@ -278,13 +279,6 @@ Web searches
 */
 {
 
-UriEncode(Uri) {
-    Uri := StrReplace(Uri, " ", "%20") ; Replace spaces with '%20'
-    ; Add other characters you want to replace here, if necessary`
-    return Uri
-}
-
-
 MicrosoftTerminologySearch(*) {
     A_Clipboard := "" ; Clear clipboard variable
     Send "^c" ; Copy selected text to clipboard
@@ -299,16 +293,17 @@ MicrosoftTerminologySearch(*) {
 
 
 GoogleSearch(*) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send "^c" ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox "Failed to copy text to clipboard."
+    ; BB_CopySelection rather than a copy of its own: this runs from Ctrl+/,
+    ; so Ctrl is still held when the copy goes out, and only that helper
+    ; waits for it to be released before sending Ctrl+C.
+    text := BB_CopySelection(2)
+    if (text = "") {
+        MsgBox("Nothing was selected.", "Text Commander", "Icon!")
         return
     }
-    CopiedText := A_Clipboard
-    SearchURL := "http://www.google.co.uk/search?hl=en&safe=off&q=" UriEncode(CopiedText)
 
-    ; Run Microsoft Edge with the search URL
+    SearchURL := "https://www.google.co.uk/search?hl=en&safe=off&q="
+               . BB_UriEncode(text)
     Run('msedge.exe "' SearchURL '"')
 }
 
@@ -368,7 +363,7 @@ MultiSearch(SearchDirection) {
 
     ; Loop through the URLs and replace {phrase} with the encoded text
     for Index, URL in SearchURLs {
-        SearchURL := StrReplace(URL, "{phrase}", UriEncode(CopiedText))
+        SearchURL := StrReplace(URL, "{phrase}", BB_UriEncode(CopiedText))
         Run('"' BrowserPath '" ' SearchURL) ; Open each search URL in the new window
         Sleep(500) ; Optional: small delay to stagger tab opening
     }
