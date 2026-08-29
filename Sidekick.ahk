@@ -149,6 +149,7 @@ RegisterBuiltInActions() {
     RegisterAction("DoubleToSingleQuotes", DoubleToSingleQuotes)
     RegisterAction("EditSidekick", EditSidekick)
     RegisterAction("GoogleSearch", GoogleSearch)
+    RegisterAction("GWIT", GWIT)
     RegisterAction("Grammarly", Grammarly)
     RegisterAction("LogiTerm", LogiTerm)
     RegisterAction("MicrosoftTerminologySearch", MicrosoftTerminologySearch)
@@ -292,6 +293,44 @@ MicrosoftTerminologySearch(*) {
     Run('msedge.exe "' SearchURL '"')
 }
 
+
+; Look the selection up in UniLex Pro (GWIT). Brought over from a personal
+; script: it copies the selection, brings UniLex forward or starts it, then
+; replaces whatever is in its search box and searches.
+GWIT(*) {
+    static exe := "C:\Program Files (x86)\UniLexPro\UniLexPro19.exe"
+
+    text := SK_CopySelection(1)
+    if (text = "") {
+        MsgBox("Select a term first.", "Supervertaler Sidekick", "Icon! T2")
+        return
+    }
+
+    if WinExist("UniLex Pro") {
+        WinActivate()
+        WinWaitActive("UniLex Pro", , 2)
+    } else {
+        if !FileExist(exe) {
+            MsgBox("UniLex Pro is not where Sidekick expects it:`n`n" exe,
+                   "Supervertaler Sidekick", "Icon!")
+            return
+        }
+        try Run(exe)
+        catch Error as err {
+            MsgBox("Could not start UniLex Pro:`n`n" err.Message,
+                   "Supervertaler Sidekick", "Icon!")
+            return
+        }
+        if !WinWait("Lookup", , 30)
+            return
+        Sleep(800)
+    }
+
+    Send("^a")
+    Sleep(50)
+    Send("^v")
+    Send("{Enter}")
+}
 
 GoogleSearch(*) {
     ; SK_CopySelection rather than a copy of its own: this runs from Ctrl+/,
