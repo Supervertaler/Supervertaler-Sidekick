@@ -91,7 +91,7 @@ MW_Show(tab := 1) {
 MW_ShowQuickTrans(*) {
     global MW_QTSource
 
-    sel := BB_CopySelection(1)
+    sel := SK_CopySelection(1)
     MW_Show(2)
     if (sel != "") {
         MW_QTSource.Value := sel
@@ -109,7 +109,7 @@ MW_Build() {
     global MW_QTSwapBtn, MW_QTGoBtn
     global QT_OnUpdate
 
-    MW_Gui := Gui("+Resize +MinSize720x420", "Text Commander")
+    MW_Gui := Gui("+Resize +MinSize720x420", "Supervertaler Sidekick")
     MW_Gui.SetFont("s9", "Segoe UI")
     MW_Gui.OnEvent("Close", MW_Hide)
     MW_Gui.OnEvent("Escape", MW_Hide)
@@ -324,7 +324,7 @@ MW_RefreshClips(force := false) {
 ; clipboard window does, so it draws from its own row list.
 MW_CustomDraw(ctrl, lParam) {
     global MW_Shown
-    return BB_DrawPastedRows(lParam, MW_Shown)
+    return SK_DrawPastedRows(lParam, MW_Shown)
 }
 
 ; ---------------------------------------------------------------------------
@@ -695,16 +695,16 @@ MW_QTInsert(job) {
 ; the window is opened.
 MW_RefreshTree(force := false) {
     global MW_Tree, MW_Nodes, MW_Sections, MW_Rebuilding
-    global MW_Search, BeijerBotData, BB_MenuRev
+    global MW_Search, SidekickData, SK_MenuRev
     static lastRev := -1
     static lastNeedle := "`n(never)"
 
     needle := ""
     try needle := Trim(MW_Search.Value)
 
-    if (!force && BB_MenuRev = lastRev && needle == lastNeedle)
+    if (!force && SK_MenuRev = lastRev && needle == lastNeedle)
         return
-    lastRev := BB_MenuRev
+    lastRev := SK_MenuRev
     lastNeedle := needle
 
     ; Delete() clears the selection, which fires ItemSelect, which asks for
@@ -719,9 +719,9 @@ MW_RefreshTree(force := false) {
     MW_Tree.Delete()
 
     if (needle = "")
-        MW_FillTree(BeijerBotData["menu"], 0)
+        MW_FillTree(SidekickData["menu"], 0)
     else
-        MW_FillFlat(BeijerBotData["menu"], needle, "")
+        MW_FillFlat(SidekickData["menu"], needle, "")
 
     ; A section that collected nothing is not worth a jump slot.
     kept := []

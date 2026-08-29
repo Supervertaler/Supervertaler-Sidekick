@@ -34,7 +34,7 @@ if !A_IsAdmin {
 ; anyway so the editor can create it.
 #Include *i "data\expansions.gen.ahk"
 Persistent
-TraySetIcon(A_ScriptDir "\B.ico")
+TraySetIcon(A_ScriptDir "\Sidekick.ico")
 
 /*
 ====================================================
@@ -68,7 +68,7 @@ Misc. functions
 
 
 ;  function to edit this file in VS Code
-EditBeijerBot(*) {
+EditSidekick(*) {
     Static editor := EnvGet('PROGRAMFILES') '\Microsoft VS Code\Code.exe'
     Run editor ' "' A_ScriptFullPath '"'
    }
@@ -95,9 +95,9 @@ RegisterBuiltInActions()
 ; silently ignored.
 EX_EnsureFresh()
 
-global BeijerBotData := LoadMenuData()
-global MenuPopup     := BuildMenuFromData(BeijerBotData["menu"])
-RegisterHotstrings(BeijerBotData["hotstrings"])
+global SidekickData := LoadMenuData()
+global MenuPopup     := BuildMenuFromData(SidekickData["menu"])
+RegisterHotstrings(SidekickData["hotstrings"])
 
 ; Start watching the clipboard (see lib\clipboard.ahk).
 CB_Init()
@@ -116,10 +116,10 @@ ShowMainMenu(x := unset, y := unset) {
 }
 
 ; Rebuild the menu after the data file changes, without restarting.
-ReloadBeijerBotMenu() {
-    global BeijerBotData, MenuPopup
-    BeijerBotData := LoadMenuData()
-    MenuPopup := BuildMenuFromData(BeijerBotData["menu"])
+ReloadSidekickMenu() {
+    global SidekickData, MenuPopup
+    SidekickData := LoadMenuData()
+    MenuPopup := BuildMenuFromData(SidekickData["menu"])
 }
 
 ; Functions implemented in this script that data entries may call by name.
@@ -132,7 +132,7 @@ RegisterBuiltInActions() {
     RegisterAction("OpenQuickTrans", MW_ShowQuickTrans)
     RegisterAction("OpenProviderSettings", OpenProviderSettings)
     RegisterAction("OpenExpansionEditor", OpenExpansionEditor)
-    RegisterAction("ReloadBeijerBot", (*) => Reload())
+    RegisterAction("ReloadSidekick", (*) => Reload())
     RegisterAction("ToggleClipboardCapture", CB_ToggleCapture)
     RegisterAction("BoldHtml", BoldHtml)
     RegisterAction("ClipboardPasteLowercase", ClipboardPasteLowercase)
@@ -141,7 +141,7 @@ RegisterBuiltInActions() {
     RegisterAction("ClipboardPasteUppercase", ClipboardPasteUppercase)
     RegisterAction("DoubleCurlyQuotes", DoubleCurlyQuotes)
     RegisterAction("DoubleToSingleQuotes", DoubleToSingleQuotes)
-    RegisterAction("EditBeijerBot", EditBeijerBot)
+    RegisterAction("EditSidekick", EditSidekick)
     RegisterAction("GoogleSearch", GoogleSearch)
     RegisterAction("Grammarly", Grammarly)
     RegisterAction("LogiTerm", LogiTerm)
@@ -305,17 +305,17 @@ MicrosoftTerminologySearch(*) {
 
 
 GoogleSearch(*) {
-    ; BB_CopySelection rather than a copy of its own: this runs from Ctrl+/,
+    ; SK_CopySelection rather than a copy of its own: this runs from Ctrl+/,
     ; so Ctrl is still held when the copy goes out, and only that helper
     ; waits for it to be released before sending Ctrl+C.
-    text := BB_CopySelection(2)
+    text := SK_CopySelection(2)
     if (text = "") {
-        MsgBox("Nothing was selected.", "Text Commander", "Icon!")
+        MsgBox("Nothing was selected.", "Supervertaler Sidekick", "Icon!")
         return
     }
 
     SearchURL := "https://www.google.co.uk/search?hl=en&safe=off&q="
-               . BB_UriEncode(text)
+               . SK_UriEncode(text)
     Run('msedge.exe "' SearchURL '"')
 }
 
@@ -375,7 +375,7 @@ MultiSearch(SearchDirection) {
 
     ; Loop through the URLs and replace {phrase} with the encoded text
     for Index, URL in SearchURLs {
-        SearchURL := StrReplace(URL, "{phrase}", BB_UriEncode(CopiedText))
+        SearchURL := StrReplace(URL, "{phrase}", SK_UriEncode(CopiedText))
         Run('"' BrowserPath '" ' SearchURL) ; Open each search URL in the new window
         Sleep(500) ; Optional: small delay to stagger tab opening
     }

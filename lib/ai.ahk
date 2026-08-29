@@ -183,7 +183,7 @@ AI_Ask(promptText, opts := "") {
 
     if (AI_Busy) {
         if (MsgBox("A request is already running.`n`nCancel it and start "
-                   "this one?", "Text Commander AI", "YesNo Icon?") != "Yes")
+                   "this one?", "Supervertaler Sidekick AI", "YesNo Icon?") != "Yes")
             return
         AI_Abort()
     }
@@ -199,9 +199,9 @@ AI_Ask(promptText, opts := "") {
         ; the text over in opts["text"] rather than making us copy again.
         selection := GetKey(opts, "text", "")
         if (selection = "")
-            selection := BB_CopySelection(2)
+            selection := SK_CopySelection(2)
         if (selection = "") {
-            MsgBox("Select some text first.", "Text Commander AI", "Icon! T2")
+            MsgBox("Select some text first.", "Supervertaler Sidekick AI", "Icon! T2")
             return
         }
     }
@@ -483,7 +483,7 @@ AI_ShowWindow() {
         return
     }
 
-    AI_Window := Gui("+Resize +MinSize520x300", "Text Commander AI")
+    AI_Window := Gui("+Resize +MinSize520x300", "Supervertaler Sidekick AI")
     AI_Window.SetFont("s11", "Calibri")
     AI_Window.OnEvent("Close", AI_HideWindow)
     AI_Window.OnEvent("Escape", AI_HideWindow)

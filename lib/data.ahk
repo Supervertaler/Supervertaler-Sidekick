@@ -34,7 +34,7 @@ LoadJsonFile(path) {
         return Jxon_Load(&txt)
     } catch Error as err {
         MsgBox("Could not read:`n" path "`n`n" err.Message,
-               "Text Commander", "Icon!")
+               "Supervertaler Sidekick", "Icon!")
         return ""
     }
 }
@@ -54,7 +54,7 @@ SaveJsonFile(path, obj) {
         return true
     } catch Error as err {
         MsgBox("Could not save:`n" path "`n`n" err.Message,
-               "Text Commander", "Icon!")
+               "Supervertaler Sidekick", "Icon!")
         return false
     }
 }
@@ -76,11 +76,11 @@ EnsureDataDir() {
 }
 
 ; Bumped whenever the menu data changes, so views can skip a rebuild.
-global BB_MenuRev := 0
+global SK_MenuRev := 0
 
 LoadMenuData() {
-    global BB_MenuRev
-    BB_MenuRev++
+    global SK_MenuRev
+    SK_MenuRev++
     EnsureDataDir()
     data := LoadJsonFile(DataFile("menu.json"))
     if (data = "") {
@@ -97,7 +97,7 @@ LoadMenuData() {
 }
 
 SaveMenuData(data) {
-    global BB_MenuRev
-    BB_MenuRev++
+    global SK_MenuRev
+    SK_MenuRev++
     return SaveJsonFile(DataFile("menu.json"), data)
 }

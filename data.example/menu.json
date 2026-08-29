@@ -3,8 +3,8 @@
   "menu": [
     {
       "kind": "heading",
-      "label": "Text Commander",
-      "icon": "B.ico",
+      "label": "Supervertaler Sidekick",
+      "icon": "Sidekick.ico",
       "bold": true,
       "menuonly": true
     },
@@ -592,13 +592,13 @@
         },
         {
           "kind": "action",
-          "label": "Edit Beijer.bot.ahk",
-          "func": "EditBeijerBot"
+          "label": "Edit Sidekick.ahk",
+          "func": "EditSidekick"
         },
         {
           "kind": "action",
-          "label": "Reload Text Commander",
-          "func": "ReloadBeijerBot"
+          "label": "Reload Sidekick",
+          "func": "ReloadSidekick"
         }
       ]
     }

@@ -148,7 +148,7 @@ QT_BuildRequest(engine, text, srcCode, tgtCode) {
     if (id = "mymemory") {
         r["method"] := "GET"
         r["url"] := "https://api.mymemory.translated.net/get?q="
-                  . BB_UriEncode(text) "&langpair="
+                  . SK_UriEncode(text) "&langpair="
                   . srcCode "|" tgtCode
         return r
     }
@@ -157,7 +157,7 @@ QT_BuildRequest(engine, text, srcCode, tgtCode) {
         ; Google Cloud Translation v2. The key rides in the query string
         ; because that is the only place this endpoint accepts one.
         r["url"] := "https://translation.googleapis.com/language/translate/v2"
-                  . "?key=" BB_UriEncode(key)
+                  . "?key=" SK_UriEncode(key)
         r["headers"]["Content-Type"] := "application/json; charset=utf-8"
         body := Map()
         body["q"] := text

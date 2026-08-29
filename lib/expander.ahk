@@ -243,7 +243,7 @@ OpenExpansionEditor(*) {
 
     EX_Load()
 
-    EX_Gui := Gui("+Resize +MinSize640x460", "Text Commander — Text expansion")
+    EX_Gui := Gui("+Resize +MinSize640x460", "Supervertaler Sidekick — Text expansion")
     EX_Gui.SetFont("s9", "Segoe UI")
     EX_Gui.OnEvent("Close", EX_Close)
     EX_Gui.OnEvent("Escape", EX_Close)
@@ -380,7 +380,7 @@ EX_Delete() {
     if (entry = "")
         return
     if (MsgBox("Delete the expansion for “" entry["trigger"] "”?",
-               "Text Commander", "YesNo Icon?") != "Yes")
+               "Supervertaler Sidekick", "YesNo Icon?") != "Yes")
         return
     for i, e in EX_Entries {
         if (e == entry) {
@@ -396,7 +396,7 @@ EX_Dialog(entry) {
     result := ""
 
     g := Gui("+Owner" (EX_Gui != "" ? EX_Gui.Hwnd : "") " -MinimizeBox",
-             "Text Commander — Expansion")
+             "Supervertaler Sidekick — Expansion")
     g.SetFont("s9", "Segoe UI")
 
     g.Add("Text", "xm ym w120", "When I type:")
@@ -431,12 +431,12 @@ EX_Dialog(entry) {
         if ok {
             t := Trim(trig.Value)
             if (t = "") {
-                MsgBox("Give it something to type.", "Text Commander", "Icon!")
+                MsgBox("Give it something to type.", "Supervertaler Sidekick", "Icon!")
                 return
             }
             if !EX_ValidTrigger(t) {
                 MsgBox("An abbreviation cannot contain a colon or a line "
-                     . "break.", "Text Commander", "Icon!")
+                     . "break.", "Supervertaler Sidekick", "Icon!")
                 return
             }
             ; Anything the dialog does not offer — the rarer flags — is kept
@@ -463,14 +463,14 @@ EX_Apply() {
     try
         EX_Save()
     catch Error as err {
-        MsgBox("Could not save:`n`n" err.Message, "Text Commander", "Icon!")
+        MsgBox("Could not save:`n`n" err.Message, "Supervertaler Sidekick", "Icon!")
         return
     }
 
     r := EX_Generate()
     if !r["ok"] {
         MsgBox("Could not write the expansions:`n`n" r["error"],
-               "Text Commander", "Icon!")
+               "Supervertaler Sidekick", "Icon!")
         return
     }
 
@@ -480,8 +480,8 @@ EX_Apply() {
               . "unusable abbreviations."
     EX_Status.Value := note
 
-    if (MsgBox(note "`n`nText Commander has to restart for them to take "
-             . "effect. Restart now?", "Text Commander", "YesNo Icon?")
+    if (MsgBox(note "`n`nSupervertaler Sidekick has to restart for them to take "
+             . "effect. Restart now?", "Supervertaler Sidekick", "YesNo Icon?")
         = "Yes")
         Reload()
 }

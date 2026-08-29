@@ -79,10 +79,10 @@ PAL_CaptureSelection() {
 ; findable by typing either half.
 ; ---------------------------------------------------------------------------
 PAL_BuildIndex() {
-    global PAL_Items, BeijerBotData, CB_Items
+    global PAL_Items, SidekickData, CB_Items
     PAL_Items := []
 
-    PAL_AddMenuItems(BeijerBotData["menu"], "")
+    PAL_AddMenuItems(SidekickData["menu"], "")
 
     for clip in CB_Items {
         text := GetKey(clip, "text", "")
@@ -249,7 +249,7 @@ PAL_KindLabel(c) {
 PAL_BuildGui() {
     global PAL_Gui, PAL_Search, PAL_List, PAL_Status
 
-    PAL_Gui := Gui("+Resize +MinSize640x380", "Text Commander")
+    PAL_Gui := Gui("+Resize +MinSize640x380", "Supervertaler Sidekick")
     PAL_Gui.SetFont("s10", "Segoe UI")
     PAL_Gui.OnEvent("Close", PAL_Hide)
     PAL_Gui.OnEvent("Escape", PAL_Hide)

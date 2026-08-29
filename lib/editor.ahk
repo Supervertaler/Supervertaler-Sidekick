@@ -65,7 +65,7 @@ OpenLibraryEditor(*) {
         return
     }
 
-    LE_Gui := Gui("+Resize +MinSize820x500", "Text Commander — Library Editor")
+    LE_Gui := Gui("+Resize +MinSize820x500", "Supervertaler Sidekick — Library Editor")
     LE_Gui.SetFont("s9", "Segoe UI")
     LE_Gui.OnEvent("Close", LE_OnClose)
     LE_Gui.OnEvent("Size", LE_OnSize)
@@ -113,12 +113,12 @@ LE_Scope_(arr, start, end) {
 }
 
 LE_BuildTree() {
-    global LE_Tree, LE_Nodes, LE_Scope, BeijerBotData
+    global LE_Tree, LE_Nodes, LE_Scope, SidekickData
 
     LE_Tree.Delete()
     LE_Nodes := Map()
 
-    top := BeijerBotData["menu"]
+    top := SidekickData["menu"]
 
     root := LE_Tree.Add("Everything", , "Expand Bold")
     LE_Nodes[root] := LE_Scope_(top, 1, top.Length)
@@ -307,8 +307,8 @@ LE_DeleteSelected() {
 ; neighbour, which is why this cannot use the per-entry swap above.
 ; ---------------------------------------------------------------------------
 LE_SectionBlocks() {
-    global BeijerBotData
-    top := BeijerBotData["menu"]
+    global SidekickData
+    top := SidekickData["menu"]
     blocks := []
     cur := ""
 
@@ -327,7 +327,7 @@ LE_SectionBlocks() {
 }
 
 LE_MoveSection(delta) {
-    global BeijerBotData, LE_Scope, LE_Dirty
+    global SidekickData, LE_Scope, LE_Dirty
 
     if !(LE_Scope is Map) {
         MsgBox("Select a section in the tree first.",
@@ -355,7 +355,7 @@ LE_MoveSection(delta) {
     if (target < 1 || target > blocks.Length)
         return
 
-    top := BeijerBotData["menu"]
+    top := SidekickData["menu"]
     a := blocks[idx < target ? idx : target]      ; the earlier block
     b := blocks[idx < target ? target : idx]      ; the later one
 
@@ -377,7 +377,7 @@ LE_MoveSection(delta) {
     Loop top.Length - b["end"]                     ; after both
         rebuilt.Push(top[b["end"] + A_Index])
 
-    BeijerBotData["menu"] := rebuilt
+    SidekickData["menu"] := rebuilt
     LE_Dirty := true
     LE_BuildTree()
     LE_ReselectSection(moved)
@@ -385,9 +385,9 @@ LE_MoveSection(delta) {
 
 ; Find the tree node whose scope starts at the given heading and select it.
 LE_ReselectSection(heading) {
-    global LE_Tree, LE_Nodes, LE_Scope, BeijerBotData
+    global LE_Tree, LE_Nodes, LE_Scope, SidekickData
 
-    top := BeijerBotData["menu"]
+    top := SidekickData["menu"]
     pos := 0
     Loop top.Length {
         if (top[A_Index] == heading) {
@@ -562,17 +562,17 @@ LE_EntryDialog(existing) {
 
 ; ---------------------------------------------------------------------------
 LE_Save() {
-    global BeijerBotData, LE_Dirty
-    if !SaveMenuData(BeijerBotData)
+    global SidekickData, LE_Dirty
+    if !SaveMenuData(SidekickData)
         return
     LE_Dirty := false
-    ReloadBeijerBotMenu()
+    ReloadSidekickMenu()
     LE_BuildTree()
     MsgBox("Saved. The menu has been rebuilt.", "Library Editor", "Iconi T2")
 }
 
 LE_OnClose(*) {
-    global LE_Gui, LE_Dirty, BeijerBotData
+    global LE_Gui, LE_Dirty, SidekickData
     if LE_Dirty {
         answer := MsgBox("You have unsaved changes.`n`nSave before closing?",
                          "Library Editor", "YesNoCancel Icon?")
@@ -581,8 +581,8 @@ LE_OnClose(*) {
         if (answer = "Yes")
             LE_Save()
         else {
-            BeijerBotData := LoadMenuData()   ; discard edits
-            ReloadBeijerBotMenu()
+            SidekickData := LoadMenuData()   ; discard edits
+            ReloadSidekickMenu()
         }
     }
     LE_Dirty := false

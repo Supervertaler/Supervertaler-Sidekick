@@ -283,7 +283,7 @@ CB_Show(*) {
 CB_BuildGui() {
     global CB_Gui, CB_List, CB_Search, CB_StatusText
 
-    CB_Gui := Gui("+Resize +MinSize560x360", "Text Commander — Clipboard")
+    CB_Gui := Gui("+Resize +MinSize560x360", "Supervertaler Sidekick — Clipboard")
     CB_Gui.SetFont("s9", "Segoe UI")
     CB_Gui.OnEvent("Close", CB_Hide)
     CB_Gui.OnEvent("Escape", CB_Hide)
@@ -455,12 +455,12 @@ CB_ItemForRow(row) {
 ; ---------------------------------------------------------------------------
 CB_CustomDraw(ctrl, lParam) {
     global CB_Shown
-    return BB_DrawPastedRows(lParam, CB_Shown)
+    return SK_DrawPastedRows(lParam, CB_Shown)
 }
 
 ; Shared by the standalone clipboard window and the clipboard pane of the
 ; main window, which display different row sets from the same history.
-BB_DrawPastedRows(lParam, rows) {
+SK_DrawPastedRows(lParam, rows) {
     static CDDS_PREPAINT          := 0x00000001
     static CDDS_ITEMPREPAINT      := 0x00010001
     static CDRF_NOTIFYITEMDRAW    := 0x00000020
@@ -604,7 +604,7 @@ CB_ClearAll() {
 ; Promote a clip into the snippet library, so something worth keeping stops
 ; being history and becomes a menu entry.
 CB_SaveAsSnippet() {
-    global BeijerBotData
+    global SidekickData
     item := CB_SelectedItem()
     if (item = "")
         return
@@ -626,8 +626,8 @@ CB_SaveAsSnippet() {
     entry["value"] := text
     target.Push(entry)
 
-    if SaveMenuData(BeijerBotData) {
-        ReloadBeijerBotMenu()
+    if SaveMenuData(SidekickData) {
+        ReloadSidekickMenu()
         try CB_StatusText.Value := "Saved to the snippet library."
     }
 }
@@ -635,8 +635,8 @@ CB_SaveAsSnippet() {
 ; Find a sensible submenu to file new snippets under, creating one if the
 ; data file has no obvious home for them.
 CB_SnippetContainer() {
-    global BeijerBotData
-    for item in BeijerBotData["menu"] {
+    global SidekickData
+    for item in SidekickData["menu"] {
         if (GetKey(item, "kind", "") = "submenu"
             && InStr(GetKey(item, "label", ""), "Clipboard snippets")) {
             if !item.Has("items")
@@ -648,7 +648,7 @@ CB_SnippetContainer() {
     sub["kind"]  := "submenu"
     sub["label"] := "• Clipboard snippets:"
     sub["items"] := []
-    BeijerBotData["menu"].InsertAt(3, sub)
+    SidekickData["menu"].InsertAt(3, sub)
     return sub["items"]
 }
 
@@ -659,7 +659,7 @@ CB_ToggleCapture(*) {
     if (CB_Gui != "")
         CB_Refresh()
     TrayTip("Clipboard capture " (CB_Enabled ? "resumed" : "paused"),
-            "Text Commander", 1)
+            "Supervertaler Sidekick", 1)
 }
 
 CB_Hide(*) {

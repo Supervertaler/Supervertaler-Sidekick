@@ -23,13 +23,13 @@ HK_Labels() {
     static labels := Map(
         "Palette",       "Open the palette (search everything)",
         "QuickTrans",    "Translate the selection (QuickTrans)",
-        "Menu",          "Open Text Commander (clipboard + menu)",
+        "Menu",          "Open Supervertaler Sidekick (clipboard + menu)",
         "MenuCentred",   "Classic popup menu",
         "Clipboard",     "Clipboard history",
         "LibraryEditor", "Library Editor",
         "GoogleSearch",  "Google the selection",
         "DesktopSearch", "Search the desktop (dtSearch)",
-        "Reload",        "Reload Text Commander"
+        "Reload",        "Reload Supervertaler Sidekick"
     )
     return labels
 }
@@ -81,7 +81,7 @@ HK_SaveToIni(bindings) {
         try IniWrite(bindings[name], SettingsFile(), "Hotkeys", name)
         catch Error as err {
             MsgBox("Could not write settings.ini:`n`n" err.Message,
-                   "Text Commander", "Icon!")
+                   "Supervertaler Sidekick", "Icon!")
             return false
         }
     }
@@ -119,8 +119,8 @@ RegisterConfiguredHotkeys() {
     if (problems != "")
         MsgBox("These shortcuts could not be registered:" problems
                "`n`nOpen the menu and choose “Keyboard shortcuts…” to fix "
-               "them. The rest of Text Commander is running normally.",
-               "Text Commander", "Icon!")
+               "them. The rest of Supervertaler Sidekick is running normally.",
+               "Supervertaler Sidekick", "Icon!")
 }
 
 ; Hotkey() passes the hotkey name to its callback; the actions take none.
@@ -252,7 +252,7 @@ OpenHotkeyEditor(*) {
 
     HKE_Work := HK_Load()
 
-    HKE_Gui := Gui("+Resize +MinSize520x340", "Text Commander — Keyboard shortcuts")
+    HKE_Gui := Gui("+Resize +MinSize520x340", "Supervertaler Sidekick — Keyboard shortcuts")
     HKE_Gui.SetFont("s9", "Segoe UI")
     HKE_Gui.OnEvent("Close", HKE_Close)
     HKE_Gui.OnEvent("Escape", HKE_Close)

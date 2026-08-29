@@ -32,7 +32,7 @@ OpenProviderSettings(*) {
         return
     }
 
-    PR_Gui := Gui("+Resize +MinSize700x520", "Text Commander — AI providers")
+    PR_Gui := Gui("+Resize +MinSize700x520", "Supervertaler Sidekick — AI providers")
     PR_Gui.SetFont("s9", "Segoe UI")
     PR_Gui.OnEvent("Close", PR_Close)
     PR_Gui.OnEvent("Escape", PR_Close)

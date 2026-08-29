@@ -18,18 +18,18 @@
 ; Any entry may also set:
 ;   "barbreak": true   start a new menu column here
 ;   "bold": true       draw it bold (headings get this automatically)
-;   "icon": "B.ico"    show an icon, path relative to the script folder
+;   "icon": "Sidekick.ico"    show an icon, path relative to the script folder
 ;
 ; Self-contained: everything this module needs is defined here, so it does not
 ; depend on the ordering or brace structure of the main script.
 ; ===========================================================================
 
 ; Built-in actions that data entries can reference by name.
-global BeijerBotActions := Map()
+global SidekickActions := Map()
 
 RegisterAction(name, fn) {
-    global BeijerBotActions
-    BeijerBotActions[name] := fn
+    global SidekickActions
+    SidekickActions[name] := fn
 }
 
 BuildMenuFromData(items) {
@@ -277,7 +277,7 @@ OpenTarget(target) {
         Run(target)
     } catch Error as err {
         MsgBox("Could not open:`n" target "`n`n" err.Message,
-               "Text Commander", "Icon!")
+               "Supervertaler Sidekick", "Icon!")
     }
 }
 
@@ -287,13 +287,13 @@ RunSearch(urlTemplate, browser := "", sel := "") {
 
     ; A caller that already captured the selection passes it in; the menu
     ; does not, and grabs it at click time.
-    query := Trim(sel != "" ? sel : BB_CopySelection())
+    query := Trim(sel != "" ? sel : SK_CopySelection())
     if (query = "") {
-        MsgBox("Select some text first.", "Text Commander", "Icon! T2")
+        MsgBox("Select some text first.", "Supervertaler Sidekick", "Icon! T2")
         return
     }
 
-    url := StrReplace(urlTemplate, "{q}", BB_UriEncode(query))
+    url := StrReplace(urlTemplate, "{q}", SK_UriEncode(query))
     try {
         if (browser = "msedge")
             Run('msedge.exe "' url '"')
@@ -301,18 +301,18 @@ RunSearch(urlTemplate, browser := "", sel := "") {
             Run(url)
     } catch Error as err {
         MsgBox("Could not open the search:`n" url "`n`n" err.Message,
-               "Text Commander", "Icon!")
+               "Supervertaler Sidekick", "Icon!")
     }
 }
 
 RunAction(name, arg := "") {
-    global BeijerBotActions
-    if !BeijerBotActions.Has(name) {
+    global SidekickActions
+    if !SidekickActions.Has(name) {
         MsgBox("This menu entry refers to an unknown action: " name,
-               "Text Commander", "Icon!")
+               "Supervertaler Sidekick", "Icon!")
         return
     }
-    fn := BeijerBotActions[name]
+    fn := SidekickActions[name]
     try {
         if (arg != "")
             fn.Call(arg)
@@ -320,7 +320,7 @@ RunAction(name, arg := "") {
             fn.Call()
     } catch Error as err {
         MsgBox("Action '" name "' failed:`n`n" err.Message,
-               "Text Commander", "Icon!")
+               "Supervertaler Sidekick", "Icon!")
     }
 }
 
@@ -330,7 +330,7 @@ RunAction(name, arg := "") {
 
 ; Copy whatever is selected in the foreground window and return it.
 ; Returns "" if nothing could be copied.
-BB_CopySelection(timeoutSec := 1) {
+SK_CopySelection(timeoutSec := 1) {
     ; The hotkey that got us here is usually still held down — Ctrl+Alt+T for
     ; QuickTrans, say — and the copy then reaches the app as Ctrl+Alt+C
     ; rather than Ctrl+C. Most apps do nothing with that, so nothing lands on
@@ -356,7 +356,7 @@ BB_CopySelection(timeoutSec := 1) {
 ; broken URLs for any term containing &, ?, +, # or an accented character —
 ; and Dutch/English terminology hits those constantly. This encodes the text
 ; as UTF-8 and escapes every byte outside the unreserved set (RFC 3986).
-BB_UriEncode(str) {
+SK_UriEncode(str) {
     static unreserved := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                        . "abcdefghijklmnopqrstuvwxyz"
                        . "0123456789-_.~"
@@ -394,6 +394,6 @@ RegisterHotstrings(list) {
             Hotstring(":" opts ":" abbr, GetKey(hs, "value", ""))
         catch Error as err
             MsgBox("Could not register hotstring '" abbr "':`n`n" err.Message,
-                   "Text Commander", "Icon!")
+                   "Supervertaler Sidekick", "Icon!")
     }
 }

@@ -1,6 +1,8 @@
-# Beijer.bot
+# Supervertaler Sidekick
 
-**A keyboard-driven command palette for translators.**
+**The system-wide toolbox for translators.**
+
+Part of the Supervertaler family, alongside [Supervertaler for Trados](https://github.com/Supervertaler/Supervertaler-for-Trados) and Supervertaler for memoQ. Those work inside your CAT tool; Sidekick works everywhere else.
 
 Select text anywhere in Windows — in a CAT tool, a browser, a PDF, an email —
 press `` ` ``, and act on it: look it up across a dozen terminology sources,
@@ -10,7 +12,7 @@ snippet in its place.
 Built in [AutoHotkey v2](https://www.autohotkey.com/docs/v2/). No dependencies,
 no runtime, no install step.
 
-![Beijer.bot menu](https://github.com/user-attachments/assets/773898d6-33b5-4aae-88f0-d89e7144db00)
+![Supervertaler Sidekick menu](https://github.com/user-attachments/assets/773898d6-33b5-4aae-88f0-d89e7144db00)
 
 ---
 
@@ -22,7 +24,7 @@ no runtime, no install step.
 | ⌘ **The palette** | `Ctrl+Alt+Space`. One search box over *everything* — clipboard history, snippets, searches, AI prompts, bookmarks and conversions at once. Type a few letters, press Enter. The menu is still there for browsing. |
 | 🌐 **QuickTrans** | `Ctrl+Alt+T`. A tab in the same window: translate the selection with several engines at once. Machine translation from MyMemory, Google, Microsoft, ModernMT and DeepL; LLMs from Claude, OpenAI, Gemini, Mistral, DeepSeek, OpenRouter, a local Ollama, or any OpenAI-compatible endpoint you point it at. Press `1`–`9` to insert one. The menu stays beside it, so you can translate, insert, then run a menu action without leaving. MyMemory needs no API key, so it works before anything is configured; keys and models for the rest are set in **Settings → AI providers & keys**, which asks each provider which models your key can actually use. |
 | 🔍 **Web searches** | Select a term, pick a source. IATE, Juremy, JurLex, Van Dale, Linguee, Proz, Reverso, BabelNet, Wikipedia, Wiktionary, Google Patents and more — 25 out of the box. Multi-search fires a whole batch at once. |
-| 🤖 **AI actions** | Run any prompt over the selection: translate, proofread, rephrase, summarise, expand, localise. Provider-agnostic — Claude by default, OpenAI if you prefer — and non-blocking, so the rest of Beijer.bot keeps working while a request is in flight. |
+| 🤖 **AI actions** | Run any prompt over the selection: translate, proofread, rephrase, summarise, expand, localise. Provider-agnostic — Claude by default, OpenAI if you prefer — and non-blocking, so the rest of Sidekick keeps working while a request is in flight. |
 | 📋 **Snippet library** | Boilerplate, standard replies, special characters, regex patterns, dictionary citations — inserted at the cursor. |
 | 🔤 **Text conversions** | Upper / lower / title / sentence case, curly quotes, brackets, HTML bold, soft-hyphen removal, straight-to-curly quote conversion. |
 | 🔖 **Bookmarks** | Online and local. Forums, docs, reference sites, folders you keep reopening. |
@@ -36,13 +38,13 @@ Everything is reachable in two keystrokes: `` ` `` then an accelerator letter.
 
 1. Install [AutoHotkey v2](https://www.autohotkey.com/) (v2.0 or later — **not** v1).
 2. Clone this repository.
-3. Run `Beijer.bot.ahk`.
+3. Run `Sidekick.ahk`.
 
-On first run, Beijer.bot copies the starter menu from `data.example/` into
+On first run, Sidekick copies the starter menu from `data.example/` into
 `data/` and opens with a working set of searches and conversions. From there
 you make it yours.
 
-> Beijer.bot requests administrator rights on launch. This is deliberate: without
+> Sidekick requests administrator rights on launch. This is deliberate: without
 > them, its hotkeys are ignored by any window that is itself elevated.
 
 ### Setting up AI
@@ -125,7 +127,7 @@ Optional per-entry overrides: `system`, `model`, `provider`, `effort`,
 ## Layout
 
 ```
-Beijer.bot.ahk        hotkeys, text conversions, local searches
+Sidekick.ahk        hotkeys, text conversions, local searches
 lib/
   mainwindow.ahk      the backtick window (clipboard + menu)
   quicktrans.ahk      multi-engine translation of the selection
