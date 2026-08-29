@@ -408,11 +408,59 @@ MW_RenderTranslations(finished := false) {
         MW_SetStatus("Translating…")
 }
 
+; Moving and resizing eight rows one at a time leaves fragments of the old
+; layout on screen: nothing erases the background a control has just vacated,
+; and a row that shrinks leaves the tail of its previous text behind. So the
+; pass runs with painting frozen, and the results area is repainted once at
+; the end — the results area only, since redrawing the whole window would
+; make the menu tree flicker on every keystroke in the source box.
+MW_QTLayout() {
+    global MW_Gui
+
+    top := 0
+    ; Whatever happens in the body, painting has to come back on — a window
+    ; left frozen looks exactly like a hung program.
+    try SendMessage(0x000B, 0, 0, , "ahk_id " MW_Gui.Hwnd)  ; WM_SETREDRAW off
+    try
+        top := MW_QTLayoutBody()
+    finally {
+        try SendMessage(0x000B, 1, 0, , "ahk_id " MW_Gui.Hwnd)
+        MW_QTRepaint(top)
+    }
+}
+
+; Erase and repaint everything from the top of the results down, children
+; included. Without RDW_ERASE the vacated background keeps its old pixels,
+; which is the whole problem here.
+MW_QTRepaint(top) {
+    global MW_Gui, MW_Tabs
+
+    try MW_Tabs.GetPos(&tabX, &tabY, &tabW, &tabH)
+    catch
+        return
+    if (top < tabY)
+        top := tabY + 20
+
+    rect := Buffer(16, 0)
+    NumPut("Int", tabX + 2,        rect, 0)
+    NumPut("Int", top,             rect, 4)
+    NumPut("Int", tabX + tabW - 2, rect, 8)
+    NumPut("Int", tabY + tabH - 2, rect, 12)
+
+    ; RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN. Deliberately not
+    ; RDW_UPDATENOW: this runs on every keystroke in the source box, and
+    ; forcing a synchronous repaint each time would make typing stutter.
+    ; Marking the area dirty is enough — Windows paints it on the next pass.
+    DllCall("RedrawWindow", "Ptr", MW_Gui.Hwnd, "Ptr", rect.Ptr,
+            "Ptr", 0, "UInt", 0x0085)
+}
+
 ; Lay out the whole QuickTrans tab: the source box grows with its text, the
 ; language row follows it down, and the result rows fill what is left. Each
 ; translation gets as many lines as it needs so nothing is cut off — which is
 ; the whole reason these are stacked fields rather than list rows.
-MW_QTLayout() {
+; Returns the y the results start at, for the repaint above.
+MW_QTLayoutBody() {
     global MW_QTRowCtl, MW_QTRows, MW_QTSel
     global MW_Tabs, MW_QTSource, MW_QTLabel, MW_QTFromLbl, MW_QTArrow
     global MW_QTSrc, MW_QTTgt, MW_QTSwapBtn, MW_QTGoBtn
@@ -458,6 +506,7 @@ MW_QTLayout() {
     y += 36
 
     ; ---- results ---------------------------------------------------------
+    resultsTop := y
     boxLeft := left + 130
     boxW    := width - 130
     if (boxW < 120)
@@ -518,6 +567,8 @@ MW_QTLayout() {
 
         y += h + 14
     }
+
+    return resultsTop
 }
 
 ; The model an engine actually used, for the grey line under its name. The
