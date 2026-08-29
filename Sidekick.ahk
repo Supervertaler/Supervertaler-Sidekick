@@ -135,6 +135,8 @@ RegisterBuiltInActions() {
     RegisterAction("ReloadSidekick", (*) => Reload())
     RegisterAction("ToggleClipboardCapture", CB_ToggleCapture)
     RegisterAction("BoldHtml", BoldHtml)
+    RegisterAction("ItalicHtml", ItalicHtml)
+    RegisterAction("UnderlineHtml", UnderlineHtml)
     RegisterAction("ClipboardPasteLowercase", ClipboardPasteLowercase)
     RegisterAction("ClipboardPasteSentenceCase", ClipboardPasteSentenceCase)
     RegisterAction("ClipboardPasteTitlecase", ClipboardPasteTitlecase)
@@ -225,40 +227,40 @@ ClipboardPasteSentenceCase(*)    {      ; Converts the selected text to sentence
     Sleep(500)
 }
 
-^+'::
-SingleCurlyQuotes(*)    {                    ; Put single, curly quotes around selection: ‘This is an example.’
-Send("^c")
-Sleep(300)
-A_Clipboard := "‘" . A_Clipboard . "’"
-Sleep(600)
-Send("^v")
+; ---------------------------------------------------------------------------
+; Put text either side of the selection.
+;
+; Every one of these used to copy for itself with Send("^c") and a Sleep, and
+; every one had the same two faults: no ClipWait, so a slow application meant
+; wrapping whatever happened to be on the clipboard already; and no wait for
+; the shortcut's own modifiers, so Ctrl+Shift+' sent Ctrl+Shift+C, which
+; almost nothing treats as copy. SK_CopySelection handles both.
+; ---------------------------------------------------------------------------
+SK_WrapSelection(before, after) {
+    text := SK_CopySelection(1)
+    if (text = "")
+        return
+    A_Clipboard := before text after
+    if !ClipWait(1, 0)
+        return
+    Send("^v")
 }
 
+^+'::SingleCurlyQuotes()
+
+SingleCurlyQuotes(*) {                    ; Put single, curly quotes around the selection: ‘like this’
+    SK_WrapSelection(Chr(0x2018), Chr(0x2019))
+}
 ;^+2::
-DoubleCurlyQuotes(*)    {                    ; Surround selection with double, curly quotes “text”
-Send("^c")
-Sleep(300)
-A_Clipboard := "“" . A_Clipboard . "”"
-Sleep(300)
-Send("^v")
+DoubleCurlyQuotes(*) {                    ; Put double, curly quotes around the selection: “like this”
+    SK_WrapSelection(Chr(0x201C), Chr(0x201D))
 }
-
-PutInRoundBrackets(*)    {                  ; Surrounds the selected text with round brackets.
-Send("^c")
-Sleep(300)
-A_Clipboard := "(" . A_Clipboard . ")"
-Sleep(600)
-Send("^v")
+PutInRoundBrackets(*) {                    ; Put round brackets around the selection.
+    SK_WrapSelection("(", ")")
 }
-
-PutInSquareBrackets(*)    {                 ; Surrounds the selected text with square brackets.
-Send("^c")
-Sleep(300)
-A_Clipboard := "[" . A_Clipboard . "]"
-Sleep(600)
-Send("^v")
+PutInSquareBrackets(*) {                    ; Put square brackets around the selection.
+    SK_WrapSelection("[", "]")
 }
-
 RemoveSoftHyphens(*) {                                      ; Removes soft hyphens from the selected text.
     A_Clipboard := ""                                       ; Clear the clipboard
     Send("^c")                                              ; Copy the current selection
@@ -275,15 +277,17 @@ DoubleToSingleQuotes(*) {                                    ; Replaces double q
     Send("^v")                                              ; Paste the modified text back
 }
 
-BoldHtml(*)    {                            ; Surrounds the selected text with HTML bold tags (<b>).
-    Send("^c")
-    Sleep(300)
-    A_Clipboard := "<b>" . A_Clipboard . "</b>"
-    Sleep(600)
-    Send("^v")
-    }
+ItalicHtml(*) {                    ; Wrap the selection in HTML italic tags.
+    SK_WrapSelection("<i>", "</i>")
+}
 
+UnderlineHtml(*) {                 ; Wrap the selection in HTML underline tags.
+    SK_WrapSelection("<u>", "</u>")
+}
 
+BoldHtml(*) {                    ; Wrap the selection in HTML bold tags.
+    SK_WrapSelection("<b>", "</b>")
+}
 /*
 ====================================================
 Web searches

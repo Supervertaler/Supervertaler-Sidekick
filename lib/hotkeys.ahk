@@ -1,4 +1,4 @@
-#Requires AutoHotkey v2.0
+﻿#Requires AutoHotkey v2.0
 ; ===========================================================================
 ; lib/hotkeys.ahk — configurable hotkeys, with a UI for changing them.
 ;
@@ -17,7 +17,8 @@ global HK_Registered := Map()    ; binding string -> true, for what is live
 
 ; Display order in the editor, and the order things register in.
 HK_ORDER := ["Palette", "QuickTrans", "Menu", "MenuCentred", "Clipboard", "LibraryEditor",
-             "GoogleSearch", "DesktopSearch", "Reload"]
+             "GoogleSearch", "DesktopSearch", "ConfirmSegment",
+             "Reload"]
 
 HK_Labels() {
     static labels := Map(
@@ -29,6 +30,7 @@ HK_Labels() {
         "LibraryEditor", "Library Editor",
         "GoogleSearch",  "Google the selection",
         "DesktopSearch", "Search the desktop (dtSearch)",
+        "ConfirmSegment","Confirm segment (memoQ, Trados)",
         "Reload",        "Reload Supervertaler Sidekick"
     )
     return labels
@@ -44,6 +46,9 @@ HK_Actions() {
         "LibraryEditor", () => OpenLibraryEditor(),
         "GoogleSearch",  () => RunAction("GoogleSearch"),
         "DesktopSearch", () => RunAction("dtSearch"),
+        ; Confirm-segment is Ctrl+Enter in memoQ, CafeTran and most others;
+        ; the point is to reach it from a key that suits your hands.
+        "ConfirmSegment",() => Send("^{Enter}"),
         "Reload",        () => Reload()
     )
     return actions
@@ -60,6 +65,12 @@ HK_Defaults() {
         "LibraryEditor", "",        ; off unless asked for
         "GoogleSearch",  "^/",
         "DesktopSearch", "^+d",
+        ; memoQ and Trados both confirm a segment with Ctrl+Enter. This
+        ; puts that on a key you can hit with one hand, without giving up
+        ; Ctrl+Enter. It is on by default only because it is scoped: outside
+        ; those two applications NumpadEnter is left alone entirely.
+        "ConfirmSegment","NumpadEnter@ahk_exe memoQ.exe"
+                       . "|NumpadEnter@ahk_exe SDLTradosStudio.exe",
         "Reload",        "^r"
     )
     return defaults
@@ -90,28 +101,67 @@ HK_SaveToIni(bindings) {
 
 ; Turn off whatever is live, then bind the given set. Rebinding without the
 ; first step would leave the old key working as well as the new one.
+; A binding may name more than one key, separated by "|", and any key may be
+; limited to one application by writing key@window. So
+;
+;   ConfirmSegment=NumpadEnter@ahk_exe memoQ.exe|MButton@ahk_exe CafeTran.exe
+;
+; gives the same action two keys, each live only in the tool it belongs to.
+; That matters: NumpadEnter and the middle mouse button both do useful work
+; elsewhere, and a global claim on either would be felt across the whole
+; machine rather than in the one program it was meant for.
 HK_Apply(bindings) {
     global HK_Registered, HK_ORDER
 
-    for binding, _ in HK_Registered {
-        try Hotkey(binding, "Off")
+    for _, reg in HK_Registered {
+        try {
+            HK_Scope(reg["window"])
+            Hotkey(reg["key"], "Off")
+        }
     }
+    HotIf()
     HK_Registered := Map()
 
     problems := ""
     for name in HK_ORDER {
-        binding := bindings.Has(name) ? Trim(bindings[name]) : ""
-        if (binding = "")            ; empty means deliberately switched off
+        raw := bindings.Has(name) ? Trim(bindings[name]) : ""
+        if (raw = "")                ; empty means deliberately switched off
             continue
-        try {
-            Hotkey(binding, HK_Wrap(HK_Actions()[name]), "On")
-            HK_Registered[binding] := true
-        } catch Error as err {
-            problems .= "`n  " HK_Labels()[name] "  ->  " binding
-                     . "   (" err.Message ")"
+
+        for piece in StrSplit(raw, "|") {
+            parsed := HK_ParseBinding(piece)
+            if (parsed["key"] = "")
+                continue
+            try {
+                HK_Scope(parsed["window"])
+                Hotkey(parsed["key"], HK_Wrap(HK_Actions()[name]), "On")
+                HK_Registered[parsed["window"] "`n" parsed["key"]] := parsed
+            } catch Error as err {
+                problems .= "`n  " HK_Labels()[name] "  ->  " Trim(piece)
+                         . "   (" err.Message ")"
+            }
         }
     }
+    HotIf()
     return problems
+}
+
+; "MButton@ahk_exe CafeTran.exe" -> {key, window}
+HK_ParseBinding(piece) {
+    piece := Trim(piece)
+    if !InStr(piece, "@")
+        return Map("key", piece, "window", "")
+    bits := StrSplit(piece, "@", , 2)
+    return Map("key", Trim(bits[1]),
+               "window", bits.Length > 1 ? Trim(bits[2]) : "")
+}
+
+; Aim the next Hotkey() call at one window, or at everywhere.
+HK_Scope(window) {
+    if (window = "")
+        HotIf()
+    else
+        HotIfWinActive(window)
 }
 
 RegisterConfiguredHotkeys() {
@@ -136,6 +186,27 @@ HK_Display(binding) {
     if (binding = "")
         return "(none)"
 
+    out := ""
+    for piece in StrSplit(binding, "|") {
+        p := HK_ParseBinding(piece)
+        if (p["key"] = "")
+            continue
+        shown := HK_DisplayKey(p["key"])
+        if (p["window"] != "")
+            shown .= " in " HK_WindowName(p["window"])
+        out .= (out = "" ? "" : ", ") shown
+    }
+    return (out = "") ? "(none)" : out
+}
+
+; "ahk_exe memoQ.exe" is how AutoHotkey names a window; nobody needs to read
+; that in a list of shortcuts.
+HK_WindowName(window) {
+    n := RegExReplace(window, "^ahk_(exe|class)\s+", "")
+    return RegExReplace(n, "\.exe$", "")
+}
+
+HK_DisplayKey(binding) {
     parts := ""
     i := 1
     while (i <= StrLen(binding)) {
@@ -158,6 +229,14 @@ HK_Display(binding) {
         key := "` (backtick)"
     else if (StrLen(key) = 1)
         key := StrUpper(key)
+    else {
+        for pair in [["MButton", "Middle click"], ["XButton1", "Mouse 4"],
+                     ["XButton2", "Mouse 5"], ["NumpadEnter", "Numpad Enter"],
+                     ["NumpadAdd", "Numpad +"], ["NumpadSub", "Numpad -"]] {
+            if (key = pair[1])
+                key := pair[2]
+        }
+    }
 
     return parts key
 }
@@ -306,6 +385,21 @@ HKE_Change() {
     name := HKE_SelectedName()
     if (name = "")
         return
+
+    ; Capturing one keystroke can only produce one unscoped key, so it would
+    ; quietly throw away a binding that names several or is limited to one
+    ; application. Say so before doing it.
+    current := HKE_Work[name]
+    if (InStr(current, "|") || InStr(current, "@")) {
+        if (MsgBox("“" HK_Labels()[name] "” is currently set to:`n`n  "
+                 . HK_Display(current) "`n`n"
+                 . "Capturing a new key replaces all of that with the single "
+                 . "key you press. To keep more than one, or to limit a key "
+                 . "to one application, edit the Hotkeys section of "
+                 . "settings.ini instead.`n`nReplace it?",
+                   "Supervertaler Sidekick", "YesNo Icon?") != "Yes")
+            return
+    }
 
     binding := HK_Capture(HKE_Gui.Hwnd)
     if (binding = "" ) {
