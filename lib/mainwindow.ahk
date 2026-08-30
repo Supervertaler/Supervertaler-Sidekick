@@ -89,7 +89,7 @@ MW_Show(tab := 1) {
 ; source box, translating. This replaces the standalone QuickTrans window —
 ; keeping the menu tree beside the results was the point of the exercise.
 MW_ShowQuickTrans(*) {
-    global MW_QTSource, MW_QTRows, MW_QTSel
+    global MW_QTSource, MW_QTRows, MW_QTSel, MW_RenderSig
 
     win := ""
     try win := WinGetProcessName("A")
@@ -123,6 +123,7 @@ MW_ShowQuickTrans(*) {
     QT_Abort()
     MW_QTRows := []
     MW_QTSel := 1
+    MW_RenderSig := ""
     MW_QTLayout()
     MW_SetStatus("Could not copy the selection. Select some text and try "
                . "again, or type it above and press Ctrl+Enter.")
@@ -357,7 +358,7 @@ MW_CustomDraw(ctrl, lParam) {
 ; QuickTrans tab
 ; ---------------------------------------------------------------------------
 MW_QTTranslate() {
-    global MW_QTSource, MW_QTSrc, MW_QTTgt
+    global MW_QTSource, MW_QTSrc, MW_QTTgt, MW_RenderSig
 
     text := Trim(MW_QTSource.Value)
     if (text = "") {
@@ -371,6 +372,7 @@ MW_QTTranslate() {
     ; translation runs on its own and the LLMs wait for Ctrl+Shift+Enter.
     groups := (QT_Setting("AutoFetchAI", "1") = "0") ? ["mt"] : ""
 
+    MW_RenderSig := ""                 ; a new run draws from scratch
     n := QT_Start(text, QT_Code(MW_QTSrc.Text), QT_Code(MW_QTTgt.Text), groups)
     SK_Log("QuickTrans: " n " engines started")
     if (n = 0) {
@@ -409,6 +411,7 @@ MW_QTSwap() {
 global MW_Rendering        := false
 global MW_RenderAgain      := false
 global MW_RenderAgainDone  := false
+global MW_RenderSig        := ""
 
 ; QT_Poll fires every 120ms and lands here, and the layout yields — SendMessage
 ; does, and so does creating controls. So the next tick interrupts the pass
@@ -421,7 +424,7 @@ global MW_RenderAgainDone  := false
 ; remembered and run at the end, because the last one carries finished=true
 ; and losing it would leave the window saying "Translating…" forever.
 MW_RenderTranslations(finished := false) {
-    global MW_Rendering, MW_RenderAgain, MW_RenderAgainDone
+    global MW_Rendering, MW_RenderAgain, MW_RenderAgainDone, MW_RenderSig
 
     if MW_Rendering {
         MW_RenderAgain := true
@@ -430,19 +433,38 @@ MW_RenderTranslations(finished := false) {
         return
     }
 
+    ; Skip a pass that would draw exactly what is already on screen. QT_Poll
+    ; calls this every 120ms whether or not an engine has answered, and a full
+    ; relayout five times a second for the minute the slowest engine takes is
+    ; both wasted and visibly restless.
+    sig := ""
+    for job in QT_Ordered()
+        sig .= job["state"] ":" StrLen(job["text"]) ";"
+    if (!finished && sig = MW_RenderSig)
+        return
+    MW_RenderSig := sig
+
     MW_Rendering := true
-    try {
-        loop {
-            MW_RenderAgain := false
-            MW_RenderOnce(finished)
-            if !MW_RenderAgain
-                break
-            finished := MW_RenderAgainDone
-            MW_RenderAgainDone := false
-        }
-    } finally {
+    try
+        MW_RenderOnce(finished)
+    finally
         MW_Rendering := false
+
+    ; A tick that arrived mid-pass is remembered — but it is NOT run here.
+    ; Running it here would keep this thread busy until the engines were done,
+    ; and this thread is usually the hotkey that opened the window: it would
+    ; answer no key and no click for the whole minute. Hand it to a one-shot
+    ; timer, which runs on a thread of its own once this one has let go.
+    if MW_RenderAgain {
+        MW_RenderAgain := false
+        pending := MW_RenderAgainDone
+        MW_RenderAgainDone := false
+        SetTimer(MW_RenderLater.Bind(pending), -60)
     }
+}
+
+MW_RenderLater(finished) {
+    MW_RenderTranslations(finished)
 }
 
 MW_RenderOnce(finished := false) {
