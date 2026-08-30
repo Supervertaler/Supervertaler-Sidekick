@@ -511,17 +511,19 @@ MW_QTLayout() {
     top := 0
     ; Whatever happens in the body, painting has to come back on — a window
     ; left frozen looks exactly like a hung program.
-    SK_Log("layout: painting off")
-    try SendMessage(0x000B, 0, 0, , "ahk_id " MW_Gui.Hwnd)  ; WM_SETREDRAW off
-    try {
-        top := MW_QTLayoutBody()
-        SK_Log("layout: body done, top=" top)
-    } finally {
-        try SendMessage(0x000B, 1, 0, , "ahk_id " MW_Gui.Hwnd)
-        SK_Log("layout: painting back on")
-        MW_QTRepaint(top)
-        SK_Log("layout: repainted")
-    }
+    ; No WM_SETREDRAW. SendMessage pumps the message queue, and pumping it in
+    ; the middle of a layout let QT_Poll's 120ms timer land inside the pass —
+    ; which reset MW_Tabs.UseTab while rows were being created, leaving the
+    ; rows attached to the wrong tab. Eight engines answered and the window
+    ; stayed empty. A minimal copy of this window without these two calls
+    ; draws perfectly under the same conditions.
+    ;
+    ; What they were for was cosmetic: suppressing the fragments a shrinking
+    ; row leaves behind. MW_QTRepaint below still erases the results area,
+    ; which handles most of that, and a stray fragment is a far smaller
+    ; problem than no results at all.
+    top := MW_QTLayoutBody()
+    MW_QTRepaint(top)
 }
 
 ; Erase and repaint everything from the top of the results down, children
