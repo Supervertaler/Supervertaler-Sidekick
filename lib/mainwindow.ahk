@@ -406,7 +406,46 @@ MW_QTSwap() {
     MW_QTTranslate()
 }
 
+global MW_Rendering        := false
+global MW_RenderAgain      := false
+global MW_RenderAgainDone  := false
+
+; QT_Poll fires every 120ms and lands here, and the layout yields — SendMessage
+; does, and so does creating controls. So the next tick interrupts the pass
+; before it has finished, and the two fight: MW_Tabs.UseTab is global state, so
+; a nested pass resets the tab while the outer one is still adding rows, and
+; the rows are built against the wrong tab. They exist, they are just not on
+; the tab you are looking at — eight engines answer and nothing appears.
+;
+; So one pass at a time. A tick that arrives mid-pass is not dropped, it is
+; remembered and run at the end, because the last one carries finished=true
+; and losing it would leave the window saying "Translating…" forever.
 MW_RenderTranslations(finished := false) {
+    global MW_Rendering, MW_RenderAgain, MW_RenderAgainDone
+
+    if MW_Rendering {
+        MW_RenderAgain := true
+        if finished
+            MW_RenderAgainDone := true
+        return
+    }
+
+    MW_Rendering := true
+    try {
+        loop {
+            MW_RenderAgain := false
+            MW_RenderOnce(finished)
+            if !MW_RenderAgain
+                break
+            finished := MW_RenderAgainDone
+            MW_RenderAgainDone := false
+        }
+    } finally {
+        MW_Rendering := false
+    }
+}
+
+MW_RenderOnce(finished := false) {
     global MW_QTRowCtl, MW_QTRows, MW_QTSel, MW_Gui
 
     SK_Log("render: entered, finished=" (finished ? "yes" : "no"))
