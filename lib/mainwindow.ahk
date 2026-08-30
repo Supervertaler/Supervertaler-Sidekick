@@ -409,6 +409,7 @@ MW_QTSwap() {
 MW_RenderTranslations(finished := false) {
     global MW_QTRowCtl, MW_QTRows, MW_QTSel, MW_Gui
 
+    SK_Log("render: entered, finished=" (finished ? "yes" : "no"))
     jobs := QT_Ordered()
     MW_QTRows := jobs
 
@@ -433,6 +434,8 @@ MW_RenderTranslations(finished := false) {
     }
     else
         MW_SetStatus("Translating…")
+
+    SK_Log("render: done")
 }
 
 ; Moving and resizing eight rows one at a time leaves fragments of the old
@@ -447,12 +450,16 @@ MW_QTLayout() {
     top := 0
     ; Whatever happens in the body, painting has to come back on — a window
     ; left frozen looks exactly like a hung program.
+    SK_Log("layout: painting off")
     try SendMessage(0x000B, 0, 0, , "ahk_id " MW_Gui.Hwnd)  ; WM_SETREDRAW off
-    try
+    try {
         top := MW_QTLayoutBody()
-    finally {
+        SK_Log("layout: body done, top=" top)
+    } finally {
         try SendMessage(0x000B, 1, 0, , "ahk_id " MW_Gui.Hwnd)
+        SK_Log("layout: painting back on")
         MW_QTRepaint(top)
+        SK_Log("layout: repainted")
     }
 }
 
