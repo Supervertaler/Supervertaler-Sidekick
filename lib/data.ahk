@@ -1,4 +1,4 @@
-#Requires AutoHotkey v2.0
+﻿#Requires AutoHotkey v2.0
 ; ===========================================================================
 ; lib/data.ahk — reading and writing the JSON data files.
 ;
@@ -100,4 +100,22 @@ SaveMenuData(data) {
     global SK_MenuRev
     SK_MenuRev++
     return SaveJsonFile(DataFile("menu.json"), data)
+}
+
+; ---------------------------------------------------------------------------
+; A trace for when something goes wrong on someone else's machine and the
+; behaviour cannot be reproduced here. Off unless Debug=1 is set in the
+; [Sidekick] section of settings.ini, so it costs nothing the rest of the
+; time.
+; ---------------------------------------------------------------------------
+global SK_Debug := -1
+
+SK_Log(line) {
+    global SK_Debug
+    if (SK_Debug = -1)
+        SK_Debug := (AI_Ini(SettingsFile(), "Sidekick", "Debug", "0") = "1")
+    if !SK_Debug
+        return
+    try FileAppend(FormatTime(, "HH:mm:ss") "  " line "`r`n",
+                   DataFile("sidekick.log"), "UTF-8")
 }

@@ -91,12 +91,28 @@ MW_Show(tab := 1) {
 MW_ShowQuickTrans(*) {
     global MW_QTSource, MW_QTRows, MW_QTSel
 
+    win := ""
+    try win := WinGetProcessName("A")
+    SK_Log("QuickTrans: triggered over " win)
+
     sel := SK_CopySelection(2)
+    SK_Log("QuickTrans: copied " StrLen(sel) " chars")
+
     MW_Show(2)
+    SK_Log("QuickTrans: window shown")
 
     if (sel != "") {
         MW_QTSource.Value := sel
-        MW_QTTranslate()
+        ; An exception here would abort the thread and leave the window
+        ; sitting there with the text in it and nothing happening — which is
+        ; exactly what it has been doing.
+        try
+            MW_QTTranslate()
+        catch Error as err {
+            SK_Log("QuickTrans: FAILED " err.Message " @ " err.File ":"
+                 . err.Line)
+            MW_SetStatus("Could not translate: " err.Message)
+        }
         return
     }
 
@@ -356,6 +372,7 @@ MW_QTTranslate() {
     groups := (QT_Setting("AutoFetchAI", "1") = "0") ? ["mt"] : ""
 
     n := QT_Start(text, QT_Code(MW_QTSrc.Text), QT_Code(MW_QTTgt.Text), groups)
+    SK_Log("QuickTrans: " n " engines started")
     if (n = 0) {
         MW_SetStatus("No engines configured. MyMemory needs no key; add "
                    . "others under Settings → AI providers.")
