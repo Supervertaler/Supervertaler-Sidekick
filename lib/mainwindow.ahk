@@ -470,7 +470,6 @@ MW_RenderLater(finished) {
 MW_RenderOnce(finished := false) {
     global MW_QTRowCtl, MW_QTRows, MW_QTSel, MW_Gui
 
-    SK_Log("render: entered, finished=" (finished ? "yes" : "no"))
     jobs := QT_Ordered()
     MW_QTRows := jobs
 
@@ -496,7 +495,6 @@ MW_RenderOnce(finished := false) {
     else
         MW_SetStatus("Translating…")
 
-    SK_Log("render: done")
 }
 
 ; Moving and resizing eight rows one at a time leaves fragments of the old
