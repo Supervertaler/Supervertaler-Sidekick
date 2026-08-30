@@ -25,10 +25,15 @@ Information:
 #Include "lib\editor.ahk"
 #Include "lib\providers.ahk"
 #Include "lib\expander.ahk"
-; Generated from data/expansions.json. Optional: a fresh
-; install has not written one yet, and the script has to start
-; anyway so the editor can create it.
-#Include *i "data\expansions.gen.ahk"
+; Generated from data/expansions.json. Optional, because a fresh install has
+; not written one yet and the script still has to start so the editor can
+; create it.
+;
+; NOT quoted, and that is not a style choice. #Include accepts a quoted path,
+; but #Include *i does not: it takes the quotes as part of the filename, finds
+; nothing, and then — this being the whole point of *i — says nothing at all.
+; Every expansion was silently dead for as long as the quotes were there.
+#Include *i data\expansions.gen.ahk
 Persistent
 TraySetIcon(A_ScriptDir "\Sidekick.ico")
 
