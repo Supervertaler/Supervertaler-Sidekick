@@ -336,31 +336,38 @@ RunAction(name, arg := "") {
 ; Returns "" if nothing could be copied.
 SK_CopySelection(timeoutSec := 2) {
     ; The hotkey that got us here is usually still held down — Ctrl+Shift+T
-    ; for QuickTrans, say — and the copy then reaches the app as Ctrl+Shift+C
-    ; rather than Ctrl+C. Wait for the fingers to leave the keys, but not
-    ; forever: a key held on purpose, or stuck, must not hang the program.
+    ; for QuickTrans, say — and the copy would then reach the application as
+    ; Ctrl+Shift+C rather than Ctrl+C. Wait for the fingers to leave the keys,
+    ; but not forever: a key held on purpose, or stuck, must not hang us.
     stop := A_TickCount + 700
     while (A_TickCount < stop
            && (GetKeyState("Ctrl", "P") || GetKeyState("Alt", "P")
                || GetKeyState("Shift", "P") || GetKeyState("LWin", "P")))
         Sleep(15)
 
-    if SK_TryCopy("^c", timeoutSec)
-        return A_Clipboard
+    ; Watch the clipboard's sequence number rather than emptying the clipboard
+    ; and waiting for something to appear.
+    ;
+    ; Emptying it is itself a write, and this program's own clipboard watcher
+    ; wakes on that write — reading the clipboard and saving the history to
+    ; disk. While it is doing so the application we just asked to copy cannot
+    ; open the clipboard, and rather than retrying it simply does nothing. We
+    ; were racing ourselves, and in a slow application we lost.
+    ;
+    ; Not clearing has a second virtue: when a copy fails, whatever the user
+    ; had on the clipboard is still there.
+    before := DllCall("user32\GetClipboardSequenceNumber", "UInt")
+    Send("^c")
 
-    ; Ctrl+Insert is the older copy shortcut and still works nearly
-    ; everywhere. Worth a second go: a heavy application under load can miss
-    ; the first keystroke, and some handle one binding but not the other.
-    if SK_TryCopy("^{Insert}", timeoutSec)
-        return A_Clipboard
-
+    stop := A_TickCount + Round(timeoutSec * 1000)
+    while (A_TickCount < stop) {
+        if (DllCall("user32\GetClipboardSequenceNumber", "UInt") != before) {
+            Sleep(40)          ; let the writer finish before reading
+            return A_Clipboard
+        }
+        Sleep(20)
+    }
     return ""
-}
-
-SK_TryCopy(keys, timeoutSec) {
-    A_Clipboard := ""
-    Send(keys)
-    return ClipWait(timeoutSec, 0) && (A_Clipboard != "")
 }
 
 ; ---------------------------------------------------------------------------
