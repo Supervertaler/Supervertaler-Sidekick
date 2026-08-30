@@ -334,43 +334,57 @@ RunAction(name, arg := "") {
 
 ; Copy whatever is selected in the foreground window and return it.
 ; Returns "" if nothing could be copied.
-SK_CopySelection(timeoutSec := 1) {
-    ; The hotkey that got us here is usually still held down — Ctrl+Alt+T for
-    ; QuickTrans, say — and the copy then reaches the app as Ctrl+Alt+C
-    ; rather than Ctrl+C. Most apps do nothing with that, so nothing lands on
-    ; the clipboard and the window opens empty. Give the fingers a moment to
-    ; leave the keys, but only a moment: a key held down on purpose, or stuck,
-    ; must not hang the program.
-    stop := A_TickCount + 400
+SK_CopySelection(timeoutSec := 2) {
+    ; The hotkey that got us here is usually still held down — Ctrl+Shift+T
+    ; for QuickTrans, say — and the copy then reaches the app as Ctrl+Shift+C
+    ; rather than Ctrl+C. Wait for the fingers to leave the keys, but not
+    ; forever: a key held on purpose, or stuck, must not hang the program.
+    stop := A_TickCount + 700
     while (A_TickCount < stop
            && (GetKeyState("Ctrl", "P") || GetKeyState("Alt", "P")
                || GetKeyState("Shift", "P") || GetKeyState("LWin", "P")))
         Sleep(15)
 
+    if SK_TryCopy("^c", timeoutSec)
+        return A_Clipboard
+
+    ; Ctrl+Insert is the older copy shortcut and still works nearly
+    ; everywhere. Worth a second go: a heavy application under load can miss
+    ; the first keystroke, and some handle one binding but not the other.
+    if SK_TryCopy("^{Insert}", timeoutSec)
+        return A_Clipboard
+
+    return ""
+}
+
+SK_TryCopy(keys, timeoutSec) {
     A_Clipboard := ""
-    Send("^c")
-    if !ClipWait(timeoutSec, 0)
-        return ""
-    return A_Clipboard
+    Send(keys)
+    return ClipWait(timeoutSec, 0) && (A_Clipboard != "")
 }
 
 ; ---------------------------------------------------------------------------
-; Put text either side of the selection.
-;
-; Every one of these used to copy for itself with Send("^c") and a Sleep, and
-; every one had the same two faults: no ClipWait, so a slow application meant
-; wrapping whatever happened to be on the clipboard already; and no wait for
-; the shortcut's own modifiers, so Ctrl+Shift+' sent Ctrl+Shift+C, which
-; almost nothing treats as copy. SK_CopySelection handles both.
+; Put text either side of the selection: quotes, brackets, HTML tags. One
+; implementation rather than a near-identical function per pair, so a new
+; wrapper is a line of data instead of a line of code.
 ; ---------------------------------------------------------------------------
 SK_WrapSelection(before, after) {
-    text := SK_CopySelection(1)
-    if (text = "")
+    saved := ClipboardAll()
+
+    text := SK_CopySelection(2)
+    if (text = "") {
+        A_Clipboard := saved
+        MsgBox("Select some text first.", "Supervertaler Sidekick", "Icon! T2")
         return
+    }
+
     A_Clipboard := before text after
-    if !ClipWait(1, 0)
-        return
-    Send("^v")
+    if ClipWait(1, 0)
+        Send("^v")
+
+    ; Give the paste time to read the clipboard before it is put back.
+    Sleep(150)
+    A_Clipboard := saved
 }
 
 ; Percent-encode a string for use in a URL.

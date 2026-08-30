@@ -1,4 +1,4 @@
-#Requires AutoHotkey v2.0
+﻿#Requires AutoHotkey v2.0
 ; ===========================================================================
 ; lib/mainwindow.ahk — the backtick window: clipboard and menu side by side.
 ;
@@ -89,17 +89,27 @@ MW_Show(tab := 1) {
 ; source box, translating. This replaces the standalone QuickTrans window —
 ; keeping the menu tree beside the results was the point of the exercise.
 MW_ShowQuickTrans(*) {
-    global MW_QTSource
+    global MW_QTSource, MW_QTRows, MW_QTSel
 
-    sel := SK_CopySelection(1)
+    sel := SK_CopySelection(2)
     MW_Show(2)
+
     if (sel != "") {
         MW_QTSource.Value := sel
         MW_QTTranslate()
-    } else {
-        MW_SetStatus("Select some text first, or type it above and press "
-                   . "Ctrl+Enter.")
+        return
     }
+
+    ; Nothing was captured. Leaving the last run on screen is worse than
+    ; showing nothing: the window looks like it answered, and the answer
+    ; belongs to whatever was selected the time before. Clear it, and say so.
+    MW_QTSource.Value := ""
+    QT_Abort()
+    MW_QTRows := []
+    MW_QTSel := 1
+    MW_QTLayout()
+    MW_SetStatus("Could not copy the selection. Select some text and try "
+               . "again, or type it above and press Ctrl+Enter.")
 }
 
 MW_Build() {
