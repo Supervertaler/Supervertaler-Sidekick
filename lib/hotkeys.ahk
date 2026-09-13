@@ -129,13 +129,20 @@ HK_SaveToIni(bindings) {
 ; That matters: NumpadEnter and the middle mouse button both do useful work
 ; elsewhere, and a global claim on either would be felt across the whole
 ; machine rather than in the one program it was meant for.
+;
+; A key may also be DoubleCtrl, DoubleShift or DoubleAlt: tap that modifier
+; twice, quickly, with nothing in between. See HK_BindDoubleTap.
+;
+; This switches off everything registered so far — the user's own shortcuts
+; included, since SC_Apply registers through the same table — so it must be
+; followed by SC_Apply, which is what both callers do.
 HK_Apply(bindings) {
     global HK_Registered, HK_ORDER
 
     for _, reg in HK_Registered {
         try {
             HK_Scope(reg["window"])
-            Hotkey(reg["key"], "Off")
+            Hotkey(reg["hotkey"], "Off")
         }
     }
     HotIf()
@@ -146,23 +153,97 @@ HK_Apply(bindings) {
         raw := bindings.Has(name) ? Trim(bindings[name]) : ""
         if (raw = "")                ; empty means deliberately switched off
             continue
+        problems .= HK_Bind(raw, HK_Actions()[name], HK_Labels()[name])
+    }
+    return problems
+}
 
-        for piece in StrSplit(raw, "|") {
-            parsed := HK_ParseBinding(piece)
-            if (parsed["key"] = "")
-                continue
-            try {
-                HK_Scope(parsed["window"])
-                Hotkey(parsed["key"], HK_Wrap(HK_Actions()[name]), "On")
-                HK_Registered[parsed["window"] "`n" parsed["key"]] := parsed
-            } catch Error as err {
-                problems .= "`n  " HK_Labels()[name] "  ->  " Trim(piece)
-                         . "   (" err.Message ")"
-            }
+; Register every key named in one binding string for one action, and record
+; each in HK_Registered so the next HK_Apply can switch it off again. Returns
+; "" or one line per key that Windows refused, ready to append to a report.
+; Shared by the built-ins and the user's own shortcuts, so the two never
+; drift in what a binding may say.
+HK_Bind(raw, action, label) {
+    global HK_Registered
+    problems := ""
+    for piece in StrSplit(raw, "|") {
+        parsed := HK_ParseBinding(piece)
+        if (parsed["key"] = "")
+            continue
+        try {
+            HK_Scope(parsed["window"])
+            if (HK_DoubleTapOf(parsed["key"]) != "")
+                HK_BindDoubleTap(HK_DoubleTapOf(parsed["key"]), action)
+            else
+                Hotkey(parsed["key"], HK_Wrap(action), "On")
+            parsed["hotkey"] := HK_HotkeyName(parsed["key"])
+            HK_Registered[parsed["window"] "`n" parsed["hotkey"]] := parsed
+        } catch Error as err {
+            problems .= "`n  " label "  ->  " Trim(piece)
+                     . "   (" err.Message ")"
         }
     }
     HotIf()
     return problems
+}
+
+; "DoubleCtrl" -> "Ctrl"; anything else -> "".
+HK_DoubleTapOf(key) {
+    if RegExMatch(key, "i)^Double(Ctrl|Shift|Alt)$", &m)
+        return StrTitle(m[1])
+    return ""
+}
+
+; The hotkey Windows actually sees for a binding key. A double tap is built
+; on the modifier's release; everything else is its own hotkey.
+HK_HotkeyName(key) {
+    mod := HK_DoubleTapOf(key)
+    return (mod = "") ? key : "~" mod " up"
+}
+
+; How long two taps may be apart and still count as one gesture.
+global HK_DOUBLE_TAP_MS := 400
+
+; A double tap of Ctrl is not something Windows can be asked for, so it is
+; built from the key's release: a "~Ctrl up" hotkey (the ~ lets Ctrl keep
+; working as a modifier) that fires the action on the second of two clean
+; releases inside HK_DOUBLE_TAP_MS. Clean means nothing else was pressed
+; while the modifier was down: A_PriorKey names the key pressed before this
+; release, which for a plain tap is the modifier itself and after Ctrl+C is
+; C. (It relies on AutoHotkey's key history, which is on by default and
+; nothing here turns off.) The only state is the tick of the last clean
+; tap, and it is cleared on firing so a triple tap is not two doubles.
+;
+; The scope set by the caller's HK_Scope applies here as to any other key,
+; so "DoubleCtrl@ahk_exe memoQ.exe" is felt only in memoQ.
+HK_BindDoubleTap(mod, action) {
+    static lastTap := Map()      ; modifier -> tick of its last clean tap
+    keyName := (mod = "Ctrl") ? "Control" : mod
+
+    Fire(*) {
+        clean := (A_PriorKey ~= "i)^[LR]?" keyName "$")
+        now := A_TickCount
+        if (clean && now - lastTap.Get(mod, 0) <= HK_DOUBLE_TAP_MS) {
+            lastTap[mod] := 0
+            action()
+            return
+        }
+        lastTap[mod] := clean ? now : 0
+    }
+    Hotkey(HK_HotkeyName("Double" mod), Fire, "On")
+}
+
+; Ask Windows whether a binding key can be registered at all, without
+; leaving it live. Throws with Windows' reason if not.
+HK_Probe(key) {
+    global HK_Registered
+    name := HK_HotkeyName(key)
+    ; Already live everywhere means already accepted — and probing it would
+    ; replace its callback with the no-op and then switch it off.
+    if HK_Registered.Has("`n" name)
+        return
+    Hotkey(name, (*) => "", "On")
+    Hotkey(name, "Off")
 }
 
 ; "MButton@ahk_exe CafeTran.exe" -> {key, window}
@@ -205,17 +286,41 @@ HK_Display(binding) {
     if (binding = "")
         return "(none)"
 
-    out := ""
+    ; The same key limited to several programs is one idea, so it is shown
+    ; once: "Numpad Enter in memoQ and SDLTradosStudio", not twice over.
+    keys := []                       ; display names, in first-seen order
+    windows := Map()                 ; display name -> [window names]
     for piece in StrSplit(binding, "|") {
         p := HK_ParseBinding(piece)
         if (p["key"] = "")
             continue
         shown := HK_DisplayKey(p["key"])
+        if !windows.Has(shown) {
+            keys.Push(shown)
+            windows[shown] := []
+        }
         if (p["window"] != "")
-            shown .= " in " HK_WindowName(p["window"])
+            windows[shown].Push(HK_WindowName(p["window"]))
+    }
+
+    out := ""
+    for shown in keys {
+        w := windows[shown]
+        if (w.Length > 0)
+            shown .= " in " HK_JoinAnd(w)
         out .= (out = "" ? "" : ", ") shown
     }
     return (out = "") ? "(none)" : out
+}
+
+; ["a"] -> "a";  ["a","b"] -> "a and b";  ["a","b","c"] -> "a, b and c"
+HK_JoinAnd(items) {
+    out := ""
+    for i, item in items {
+        sep := (i = 1) ? "" : (i = items.Length) ? " and " : ", "
+        out .= sep item
+    }
+    return out
 }
 
 ; "ahk_exe memoQ.exe" is how AutoHotkey names a window; nobody needs to read
@@ -248,7 +353,9 @@ HK_DisplayKey(binding) {
     ; to read, and these strings are now shown to people.
     if (SubStr(key, 1, 1) = "{" && SubStr(key, -1) = "}")
         key := SubStr(key, 2, StrLen(key) - 2)
-    if (key = Chr(96))
+    if (HK_DoubleTapOf(key) != "")
+        key := HK_DoubleTapOf(key) " twice"
+    else if (key = Chr(96))
         key := "` (backtick)"
     else if (StrLen(key) = 1)
         key := StrUpper(key)
@@ -277,6 +384,8 @@ HK_Capture(ownerHwnd) {
     g.SetFont("s10", "Segoe UI")
     g.Add("Text", "xm ym w320 Center",
           "Press the key combination you want to use.")
+    g.Add("Text", "xm y+6 w320 Center",
+          "Or tap Ctrl, Shift or Alt twice, quickly.")
     g.Add("Text", "xm y+10 w320 Center cGray",
           "Escape cancels.  Backspace clears the shortcut.")
     g.Show("w340")
@@ -284,10 +393,17 @@ HK_Capture(ownerHwnd) {
     ih := InputHook("B L0")
     ih.KeyOpt("{All}", "N")     ; notify on every key, swallow nothing extra
     ih.OnKeyDown := OnKey
+    ih.OnKeyUp := OnKeyUp
     ih.Start()
+
+    ; For the double tap: the last key pressed, and the last clean tap.
+    lastDown := ""
+    lastTapMod := ""
+    lastTapTick := 0
 
     OnKey(hook, vk, sc) {
         name := GetKeyName(Format("vk{:X}sc{:X}", vk, sc))
+        lastDown := name
 
         ; Modifiers alone are not a shortcut; wait for a real key.
         if (name ~= "i)^(LControl|RControl|Control|LAlt|RAlt|Alt"
@@ -322,6 +438,28 @@ HK_Capture(ownerHwnd) {
         hook.Stop()
     }
 
+    ; A modifier released with nothing pressed since it went down is a
+    ; tap; two of the same one inside the window make a double tap.
+    OnKeyUp(hook, vk, sc) {
+        name := GetKeyName(Format("vk{:X}sc{:X}", vk, sc))
+        if !RegExMatch(name, "i)^[LR]?(Control|Shift|Alt)$", &m)
+            return
+        mod := (m[1] = "Control") ? "Ctrl" : StrTitle(m[1])
+        if (name != lastDown) {      ; something else came in between
+            lastTapMod := ""
+            return
+        }
+        now := A_TickCount
+        if (lastTapMod = mod && now - lastTapTick <= HK_DOUBLE_TAP_MS) {
+            captured := "Double" mod
+            done := true
+            hook.Stop()
+            return
+        }
+        lastTapMod := mod
+        lastTapTick := now
+    }
+
     ; Wait for a key, but never hang if something goes wrong.
     waited := 0
     while (!done && waited < 10000) {
@@ -345,9 +483,11 @@ global HKE_List  := ""
 global HKE_Work  := ""      ; working copy of the built-in bindings
 global HKE_Mine  := []      ; working copy of the user's own shortcuts
 global HKE_Rows  := []      ; what each list row is, in row order
+global HKE_Intro := ""      ; the paragraph above the list
+global HKE_Buttons := []    ; the buttons under it, for HKE_OnSize
 
 OpenHotkeyEditor(*) {
-    global HKE_Gui, HKE_List, HKE_Work, HKE_Mine
+    global HKE_Gui, HKE_List, HKE_Work, HKE_Mine, HKE_Intro, HKE_Buttons
 
     if (HKE_Gui != "") {
         HKE_Gui.Show()
@@ -357,42 +497,68 @@ OpenHotkeyEditor(*) {
     HKE_Work := HK_Load()
     HKE_Mine := SC_Load()
 
-    HKE_Gui := Gui("+Resize +MinSize640x420",
+    HKE_Gui := Gui("+Resize +MinSize700x420",
                    "Supervertaler Sidekick — Keyboard shortcuts")
     HKE_Gui.SetFont("s9", "Segoe UI")
     HKE_Gui.OnEvent("Close", HKE_Close)
     HKE_Gui.OnEvent("Escape", HKE_Close)
+    HKE_Gui.OnEvent("Size", HKE_OnSize)
 
-    HKE_Gui.Add("Text", "xm ym w720",
+    HKE_Intro := HKE_Gui.Add("Text", "xm ym w820 h48",
                 "A shortcut is a key to press and something for it to do. "
                 "Both are shown below. The built-in ones lend their key to a "
                 "part of the program, so only the key can change; the ones "
-                "you make yourself can do anything the menu can.")
+                "you make yourself can do anything the menu can. A key can "
+                "also be a quick double tap of Ctrl, Shift or Alt.")
 
-    HKE_List := HKE_Gui.Add("ListView", "xm y+10 w720 h300",
+    HKE_List := HKE_Gui.Add("ListView", "xm y+10 w820 h380",
                             ["Action", "Does", "Shortcut"])
     HKE_List.OnEvent("DoubleClick", (*) => HKE_Change())
 
-    HKE_Gui.Add("Button", "xm y+10 w130", "Change key…")
-        .OnEvent("Click", (*) => HKE_Change())
-    HKE_Gui.Add("Button", "x+6 w90", "Turn off")
-        .OnEvent("Click", (*) => HKE_Clear())
-    HKE_Gui.Add("Button", "x+6 w120", "Reset to default")
-        .OnEvent("Click", (*) => HKE_ResetOne())
+    ; The buttons sit under the list and follow it when the window grows;
+    ; HKE_Buttons keeps each with its offset from the list's bottom edge.
+    HKE_Buttons := []
+    Btn(opts, text, handler, dy) {
+        b := HKE_Gui.Add("Button", opts, text)
+        b.OnEvent("Click", handler)
+        HKE_Buttons.Push(Map("ctl", b, "dy", dy))
+        return b
+    }
+    Btn("xm y+10 w130",      "Change key…",       (*) => HKE_Change(),   10)
+    Btn("x+6 w130",          "Add another key…",  (*) => HKE_AddKey(),   10)
+    Btn("x+6 w90",           "Turn off",          (*) => HKE_Clear(),    10)
+    Btn("x+6 w120",          "Reset to default",  (*) => HKE_ResetOne(), 10)
 
-    HKE_Gui.Add("Button", "xm y+6 w130", "New shortcut…")
-        .OnEvent("Click", (*) => HKE_New())
-    HKE_Gui.Add("Button", "x+6 w90", "Edit…")
-        .OnEvent("Click", (*) => HKE_EditItem())
-    HKE_Gui.Add("Button", "x+6 w120", "Delete")
-        .OnEvent("Click", (*) => HKE_DeleteItem())
-    HKE_Gui.Add("Button", "x+130 yp w90 Default", "Save")
-        .OnEvent("Click", (*) => HKE_Save())
-    HKE_Gui.Add("Button", "x+6 w70", "Close")
-        .OnEvent("Click", (*) => HKE_Close())
+    Btn("xm y+6 w130",       "New shortcut…",     (*) => HKE_New(),      42)
+    Btn("x+6 w130",          "Edit…",             (*) => HKE_EditItem(), 42)
+    Btn("x+6 w90",           "Delete",            (*) => HKE_DeleteItem(), 42)
+    Btn("x+130 yp w90 Default", "Save",           (*) => HKE_Save(),     42)
+    Btn("x+6 w70",           "Close",             (*) => HKE_Close(),    42)
 
     HKE_Refresh()
-    HKE_Gui.Show("w760 h470")
+    HKE_Gui.Show("w860 h560")
+}
+
+; The list takes whatever the window offers; the Shortcut column, being the
+; one that grows as keys are added, takes the slack inside it.
+HKE_OnSize(thisGui, minMax, width, height) {
+    global HKE_List, HKE_Intro, HKE_Buttons
+    if (minMax = -1)
+        return
+    w := width - 24
+    HKE_List.GetPos(, &top)
+    h := height - top - 90          ; two rows of buttons and a margin
+    if (h < 120)
+        h := 120
+    try {
+        HKE_Intro.Move(, , w)
+        HKE_List.Move(, , w, h)
+        HKE_List.ModifyCol(3, w - 250 - 280 - 24)
+        for b in HKE_Buttons
+            b["ctl"].Move(, top + h + b["dy"])
+        ; Moving controls leaves their old pixels behind; repaint the lot.
+        WinRedraw("ahk_id " thisGui.Hwnd)
+    }
 }
 
 ; Rows are the built-ins first, then a heading, then the user's own, and
@@ -426,7 +592,8 @@ HKE_Refresh() {
 
     HKE_List.ModifyCol(1, 250)
     HKE_List.ModifyCol(2, 280)
-    HKE_List.ModifyCol(3, 165)
+    HKE_List.GetPos(, , &listW)
+    HKE_List.ModifyCol(3, listW - 250 - 280 - 24)
     HKE_List.Opt("+Redraw")
 }
 
@@ -462,9 +629,8 @@ HKE_Change() {
     if (InStr(current, "|") || InStr(current, "@")) {
         if (MsgBox("That shortcut is currently:`n`n  " HK_Display(current)
                  . "`n`nCapturing a new key replaces all of it with the "
-                 . "single key you press. To keep more than one, or to limit "
-                 . "a key to one application, edit the Hotkeys section of "
-                 . "settings.ini instead.`n`nReplace it?",
+                 . "single key you press. To keep what is there and add to "
+                 . "it, use “Add another key…” instead.`n`nReplace it?",
                    "Supervertaler Sidekick", "YesNo Icon?") != "Yes")
             return
     }
@@ -475,23 +641,115 @@ HKE_Change() {
         return
     }
 
-    ; Refuse a combination that will not register rather than saving a
-    ; shortcut that silently does nothing.
-    try {
-        Hotkey(binding, (*) => "", "On")
-        Hotkey(binding, "Off")
-    } catch Error as err {
-        MsgBox("Windows will not accept that combination:`n`n"
-             . HK_Display(binding) "`n`n" err.Message,
-               "Keyboard shortcuts", "Icon!")
+    if !HKE_Accepts(binding)
         return
-    }
 
     if (sel["type"] = "builtin")
         HKE_Work[sel["name"]] := binding
     else
         HKE_Mine[sel["index"]]["key"] := binding
     HKE_Refresh()
+}
+
+; Refuse a combination that will not register rather than saving a
+; shortcut that silently does nothing.
+HKE_Accepts(binding) {
+    try
+        HK_Probe(binding)
+    catch Error as err {
+        MsgBox("Windows will not accept that combination:`n`n"
+             . HK_Display(binding) "`n`n" err.Message,
+               "Keyboard shortcuts", "Icon!")
+        return false
+    }
+    return true
+}
+
+; Give the selected shortcut one more key, keeping the ones it has. When
+; the existing keys are all limited to particular programs, the new one is
+; offered the same limits, since that scoping is usually the point: a
+; global Ctrl-Ctrl that presses Ctrl+Enter would send half-written emails.
+HKE_AddKey() {
+    global HKE_Gui, HKE_Work, HKE_Mine
+
+    sel := HKE_SelectedRow()
+    if (sel = "")
+        return
+
+    current := (sel["type"] = "builtin")
+        ? HKE_Work[sel["name"]]
+        : HKE_Mine[sel["index"]]["key"]
+
+    key := HK_Capture(HKE_Gui.Hwnd)
+    if (key = "")
+        return
+    if !HKE_Accepts(key)
+        return
+
+    sameScope := false
+    windows := HK_WindowsOf(current)
+    if (windows.Length > 0) {
+        names := []
+        for w in windows
+            names.Push(HK_WindowName(w))
+        plural := (names.Length > 1) ? "s" : ""
+        answer := MsgBox("The existing key only works in " HK_JoinAnd(names)
+                       . ".`n`nLimit " HK_Display(key) " to the same "
+                       . "program" plural "?`n`nYes: same program" plural
+                       . " only.   No: everywhere.",
+                         "Keyboard shortcuts", "YesNoCancel Icon?")
+        if (answer = "Cancel")
+            return
+        sameScope := (answer = "Yes")
+    }
+
+    current := HK_WithKey(current, key, sameScope)
+    if (sel["type"] = "builtin")
+        HKE_Work[sel["name"]] := current
+    else
+        HKE_Mine[sel["index"]]["key"] := current
+    HKE_Refresh()
+}
+
+; The distinct windows a binding is limited to — or none at all if any of
+; its keys is already global, since then there is no limit to extend.
+HK_WindowsOf(binding) {
+    windows := []
+    for piece in StrSplit(binding, "|") {
+        p := HK_ParseBinding(piece)
+        if (p["key"] = "")
+            continue
+        if (p["window"] = "")
+            return []
+        if !HK_Contains(windows, p["window"])
+            windows.Push(p["window"])
+    }
+    return windows
+}
+
+; The binding with one more key: either everywhere, or once per window the
+; existing keys are limited to. Pieces already present are not repeated.
+HK_WithKey(binding, key, sameScope) {
+    pieces := [key]
+    if sameScope {
+        pieces := []
+        for w in HK_WindowsOf(binding)
+            pieces.Push(key "@" w)
+    }
+    have := StrSplit(binding, "|")
+    for piece in pieces {
+        if !HK_Contains(have, piece)
+            binding .= (Trim(binding) = "" ? "" : "|") piece
+    }
+    return binding
+}
+
+HK_Contains(items, wanted) {
+    for item in items {
+        if (Trim(item) = Trim(wanted))
+            return true
+    }
+    return false
 }
 
 HKE_Clear() {

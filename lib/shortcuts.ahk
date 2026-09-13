@@ -137,37 +137,28 @@ SC_Short(t, n) {
 }
 
 ; ---------------------------------------------------------------------------
-; Registration. The key half understands everything HK_Apply does: several
-; keys separated by "|", and key@window to limit one to an application.
+; Registration. The key half is HK_Bind, so it understands everything the
+; built-ins do: several keys separated by "|", key@window to limit one to an
+; application, and DoubleCtrl for a double tap. Going through HK_Bind also
+; puts these in HK_Registered, so HK_Apply switches them off before a
+; re-register and a key you change in the editor stops answering to its old
+; binding without a restart. Always call after HK_Apply, never instead.
 ; ---------------------------------------------------------------------------
 SC_Apply(items) {
     problems := ""
-
     for item in items {
         raw := Trim(GetKey(item, "key", ""))
         if (raw = "")
             continue
-
-        for piece in StrSplit(raw, "|") {
-            parsed := HK_ParseBinding(piece)
-            if (parsed["key"] = "")
-                continue
-            try {
-                HK_Scope(parsed["window"])
-                Hotkey(parsed["key"], SC_Wrap(item), "On")
-            } catch Error as err {
-                problems .= "`n  " GetKey(item, "label", "(unnamed)")
-                         . "  ->  " Trim(piece) "   (" err.Message ")"
-            }
-        }
+        problems .= HK_Bind(raw, SC_Wrap(item),
+                            GetKey(item, "label", "(unnamed)"))
     }
-    HotIf()
     return problems
 }
 
 ; A closure per shortcut, so each one keeps its own entry.
 SC_Wrap(item) {
-    return (*) => ExecuteEntry(item)
+    return () => ExecuteEntry(item)
 }
 
 RegisterUserShortcuts() {
