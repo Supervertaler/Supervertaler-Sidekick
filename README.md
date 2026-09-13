@@ -32,6 +32,7 @@ no runtime, no install step.
 | 🔤 **Text conversions** | Upper / lower / title / sentence case, curly quotes, brackets, HTML bold, soft-hyphen removal, straight-to-curly quote conversion. |
 | 🔖 **Bookmarks** | Online and local. Forums, docs, reference sites, folders you keep reopening. |
 | 📎 **Clipboard manager** | Searchable history that survives restarts, pasted straight back into the window you came from. Entries you've already used are ticked and greyed, so you can work down a list of terms without losing your place. `Ctrl+Alt+C` |
+| ⌨️ **Keyboard shortcuts** | Every built-in key can be changed, given a second key, or limited to one program, and you can attach a key to anything the menu does. A key can also be a quick double tap of Ctrl, Shift or Alt – tap Ctrl twice in memoQ or Trados to confirm a segment, say. All from **Keyboard shortcuts…**, no editing of ini files. |
 
 Everything is reachable in two keystrokes: `` ` `` then an accelerator letter.
 
