@@ -831,9 +831,9 @@ MW_RefreshTree(force := false) {
     MW_Tree.Delete()
 
     if (needle = "")
-        MW_FillTree(SidekickData["menu"], 0)
+        MW_FillTree(PK_WithPacks(SidekickData["menu"]), 0)
     else
-        MW_FillFlat(SidekickData["menu"], needle, "")
+        MW_FillFlat(PK_WithPacks(SidekickData["menu"]), needle, "")
 
     ; A section that collected nothing is not worth a jump slot.
     kept := []

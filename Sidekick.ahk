@@ -22,6 +22,7 @@ Information:
 #Include "lib\mainwindow.ahk"
 #Include "lib\quicktrans.ahk"
 #Include "lib\langpair.ahk"
+#Include "lib\packs.ahk"
 #Include "lib\hotkeys.ahk"
 #Include "lib\shortcuts.ahk"
 #Include "lib\editor.ahk"
@@ -119,7 +120,7 @@ RegisterBuiltInActions()
 EX_EnsureFresh()
 
 global SidekickData := LoadMenuData()
-global MenuPopup     := BuildMenuFromData(SidekickData["menu"])
+global MenuPopup     := BuildMenuFromData(PK_WithPacks(SidekickData["menu"]))
 RegisterHotstrings(SidekickData["hotstrings"])
 
 ; Start watching the clipboard (see lib\clipboard.ahk).
@@ -146,7 +147,7 @@ ShowMainMenu(x := unset, y := unset) {
 ReloadSidekickMenu() {
     global SidekickData, MenuPopup
     SidekickData := LoadMenuData()
-    MenuPopup := BuildMenuFromData(SidekickData["menu"])
+    MenuPopup := BuildMenuFromData(PK_WithPacks(SidekickData["menu"]))
 }
 
 ; Functions implemented in this script that data entries may call by name.
@@ -157,6 +158,7 @@ RegisterBuiltInActions() {
     RegisterAction("OpenPalette", PAL_Show)
     RegisterAction("OpenLanguagePair", LP_Dialog)
     RegisterAction("SwapLanguages", LP_Swap)
+    RegisterAction("OpenLanguagePacks", PK_Dialog)
     RegisterAction("OpenMainWindow", MW_Show)
     RegisterAction("OpenQuickTrans", MW_ShowQuickTrans)
     RegisterAction("OpenProviderSettings", OpenProviderSettings)

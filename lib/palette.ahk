@@ -82,7 +82,7 @@ PAL_BuildIndex() {
     global PAL_Items, SidekickData, CB_Items
     PAL_Items := []
 
-    PAL_AddMenuItems(SidekickData["menu"], "")
+    PAL_AddMenuItems(PK_WithPacks(SidekickData["menu"]), "")
 
     for clip in CB_Items {
         text := GetKey(clip, "text", "")

@@ -46,6 +46,8 @@ LP_Set(src, tgt) {
     }
     LP_Tip()
     MW_ShowLangPair(src, tgt)
+    ; The language packs on the menu follow the pair.
+    PK_Refresh()
 }
 
 LP_Swap(*) {

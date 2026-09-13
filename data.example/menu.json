@@ -405,12 +405,6 @@
     },
     {
       "kind": "search",
-      "label": "• FELOnline (Financieel Economisch Lexicon)",
-      "url": "http://www.felonline.nl/felo/?keywords={q}&action=user_translate&lexiconSearch=Vertaal",
-      "browser": "msedge"
-    },
-    {
-      "kind": "search",
       "label": "🔊 Google this! (Ctrl+/)",
       "url": "http://www.google.co.uk/search?hl=en&safe=off&q={q}",
       "browser": "msedge"
@@ -431,15 +425,6 @@
       "kind": "search",
       "label": "• Juremy",
       "url": "https://juremy.com/search?src={sl3}&dst={tl3}&q={q}&opts=ia&tool=iws",
-      "browser": "msedge"
-    },
-    {
-      "kind": "search",
-      "label": "• JurLex (Dutch/English)",
-      "by_pair": {
-        "nl-en": "https://www.lexicons.nl/lemma?searchterm={q}&SESSIONdictionary=jel_nlen",
-        "en-nl": "https://www.lexicons.nl/lemma?searchterm={q}&SESSIONdictionary=jel_ennl"
-      },
       "browser": "msedge"
     },
     {
@@ -469,15 +454,6 @@
       "kind": "search",
       "label": "• Reverso",
       "url": "https://context.reverso.net/translation/{sl_full}-{tl_full}/{q}",
-      "browser": "msedge"
-    },
-    {
-      "kind": "search",
-      "label": "• Van Dale (Dutch/English)",
-      "by_pair": {
-        "nl-en": "https://zoeken.vandale.nl/?dictionaryId=gne&query={q}",
-        "en-nl": "https://zoeken.vandale.nl/?dictionaryId=gen&query={q}"
-      },
       "browser": "msedge"
     },
     {
@@ -525,6 +501,11 @@
           "kind": "action",
           "label": "Swap languages",
           "func": "SwapLanguages"
+        },
+        {
+          "kind": "action",
+          "label": "Language packs…",
+          "func": "OpenLanguagePacks"
         },
         {
           "kind": "separator"
