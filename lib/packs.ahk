@@ -1,48 +1,63 @@
 #Requires AutoHotkey v2.0
 ; ===========================================================================
-; lib/packs.ahk — language packs: the sources that belong to one language.
+; lib/packs.ahk — language packs: everything a translator in one pair needs.
 ;
-; After lib/langpair.ahk the pair-agnostic sources (IATE, Linguee, ProZ,
-; Reverso, Wikipedia…) already serve every pair. What differs per language is
-; the rest: Van Dale and Woordenlijst for Dutch, Duden for German, Larousse
-; for French. A pack is one JSON file per LANGUAGE in packs\, not per pair —
-; twenty files to keep, not four hundred — and a pack is shown whenever its
-; language is the source or the target of the current pair.
+; A pack is one JSON file per language PAIR in packs\ — nl-en.json is Dutch
+; and English in both directions — holding the sources for that pair: the
+; bilingual dictionaries, the monolingual ones on either side, and a
+; MultiSearch that opens the lot at once. One tick installs it. A translator
+; who works Dutch and German installs nl-de and nothing else.
+;
+; A pack is direction-agnostic: its URLs say {sl} and {tl}, so the same file
+; serves Dutch → English and English → Dutch, and a source that only exists
+; one way carries by_pair. A pack is shown whenever the current pair is its
+; pair in either direction, so someone with nl-en and nl-de installed sees
+; only the one that applies.
 ;
 ; Pack entries are never written into data\menu.json. They are appended to
 ; the menu at the moment a view builds it (PK_WithPacks), so the Library
 ; Editor, which edits and saves the real menu, never sees them. Removing a
-; pack is a tick in a dialog, not a hunt through the menu.
+; pack is one untick, not a hunt through the menu.
 ;
-; Which packs are installed lives in settings.ini [Packs] Installed=nl|en.
-; Until that key exists the packs for the two languages of the current pair
-; are used, so a fresh install with Dutch → English gets Dutch and English
+; Which packs are installed lives in settings.ini [Packs] Installed=nl-en.
+; Until that key exists, the pack for the current pair is installed if one
+; exists, so a fresh install with Dutch → English gets Dutch ⇄ English
 ; without being asked.
 ;
-; File format, packs\nl.json:
-;   { "language": "nl", "name": "Dutch",
-;     "entries": [ { "kind": "search", "label": "…", "url": "…{q}…{sl}…" },
+; File format, packs\nl-en.json:
+;   { "pair": "nl-en", "name": "Dutch ⇄ English",
+;     "entries": [ { "kind": "multisearch", "label": "…", "value": "url\nurl" },
+;                  { "kind": "search", "label": "…", "url": "…{q}…{sl}…" },
 ;                  { "kind": "search", "label": "…", "by_pair": { "nl-en": "…" } } ] }
 ; ===========================================================================
 
 PK_Dir() => A_ScriptDir "\packs"
 
-; Every pack file on disk: [ Map(code, name, path, count) ], by name.
+; "nl-en" and "en-nl" are the same pack. A pack keeps the pair as its file
+; declares it; comparisons ignore direction.
+PK_Same(a, b) {
+    a := StrLower(Trim(a)), b := StrLower(Trim(b))
+    if (a = b)
+        return true
+    bits := StrSplit(b, "-")
+    return (bits.Length = 2) && (a = bits[2] "-" bits[1])
+}
+
+; Every pack file on disk: [ Map(pair, name, path, count) ], by name.
 PK_Available() {
     packs := []
     Loop Files, PK_Dir() "\*.json" {
         d := LoadJsonFile(A_LoopFileFullPath)
         if !(d is Map)
             continue
-        code := GetKey(d, "language", "")
-        if (code = "")
+        pair := GetKey(d, "pair", "")
+        if (pair = "")
             continue
-        packs.Push(Map("code", code,
-                       "name", GetKey(d, "name", code),
+        packs.Push(Map("pair", StrLower(Trim(pair)),
+                       "name", GetKey(d, "name", pair),
                        "path", A_LoopFileFullPath,
                        "count", GetKey(d, "entries", []).Length))
     }
-    ; Sort by name so the dialog reads as a list of languages.
     n := packs.Length
     Loop n - 1 {
         i := A_Index
@@ -56,32 +71,35 @@ PK_Available() {
     return packs
 }
 
-; Codes of the installed packs. Explicit if ever saved; otherwise the two
-; languages of the current pair.
+; Pair keys of the installed packs. Explicit if ever saved; otherwise the
+; pack for the current pair, if there is one.
 PK_Installed() {
     raw := Trim(AI_Ini(SettingsFile(), "Packs", "Installed", "*"))
     if (raw = "*") {
-        global LP_Src, LP_Tgt
-        return [QT_Code(LP_Src), QT_Code(LP_Tgt)]
+        for p in PK_Available() {
+            if PK_Same(p["pair"], LP_PairKey())
+                return [p["pair"]]
+        }
+        return []
     }
     out := []
     for c in StrSplit(raw, "|") {
         if (Trim(c) != "")
-            out.Push(Trim(c))
+            out.Push(StrLower(Trim(c)))
     }
     return out
 }
 
-PK_SaveInstalled(codes) {
+PK_SaveInstalled(pairs) {
     joined := ""
-    for c in codes
-        joined .= (joined = "" ? "" : "|") c
+    for p in pairs
+        joined .= (joined = "" ? "" : "|") p
     try IniWrite(joined, SettingsFile(), "Packs", "Installed")
     PK_Invalidate()
 }
 
-; The entries to show right now: installed packs whose language is in the
-; pair, minus by_pair entries that have nothing for this pair. Cached per
+; The entries to show right now: the installed pack for the current pair,
+; minus by_pair entries that have nothing for this direction. Cached per
 ; (installed, pair), since the main window rebuilds its list as you type.
 global PK_CacheKey := ""
 global PK_CacheVal := []
@@ -92,32 +110,39 @@ PK_Invalidate() {
 }
 
 PK_Entries() {
-    global PK_CacheKey, PK_CacheVal, LP_Src, LP_Tgt
+    global PK_CacheKey, PK_CacheVal
     installed := PK_Installed()
+    direction := LP_PairKey()
     key := ""
-    for c in installed
-        key .= c "|"
-    key .= "@" LP_PairKey()
+    for p in installed
+        key .= p "|"
+    key .= "@" direction
     if (key = PK_CacheKey)
         return PK_CacheVal
 
-    sl := QT_Code(LP_Src), tl := QT_Code(LP_Tgt)
-    pair := LP_PairKey()
     out := []
-    for code in installed {
-        if (code != sl && code != tl)
+    for p in PK_Available() {
+        if !PK_Same(p["pair"], direction)
             continue
-        d := LoadJsonFile(PK_Dir() "\" code ".json")
+        on := false
+        for i in installed {
+            if PK_Same(i, p["pair"])
+                on := true
+        }
+        if !on
+            continue
+        d := LoadJsonFile(p["path"])
         if !(d is Map)
             continue
+        pair := p["pair"]
         for e in GetKey(d, "entries", []) {
             if !(e is Map)
                 continue
             bp := GetKey(e, "by_pair", "")
-            if (bp is Map && GetKey(e, "url", "") = "" && !bp.Has(pair))
+            if (bp is Map && GetKey(e, "url", "") = "" && !bp.Has(direction))
                 continue
             item := e.Clone()
-            item["pack"] := code
+            item["pack"] := pair
             out.Push(item)
         }
     }
@@ -127,7 +152,7 @@ PK_Entries() {
 }
 
 ; The menu a view should show: the user's own entries, then a Language
-; packs section. Returns a new array; the original is never touched.
+; pack section. Returns a new array; the original is never touched.
 PK_WithPacks(menu) {
     entries := PK_Entries()
     if (entries.Length = 0)
@@ -136,7 +161,7 @@ PK_WithPacks(menu) {
     for e in menu
         out.Push(e)
     out.Push(Map("kind", "separator"))
-    out.Push(Map("kind", "heading", "label", "LANGUAGE PACKS:"))
+    out.Push(Map("kind", "heading", "label", "LANGUAGE PACK:"))
     for e in entries
         out.Push(e)
     return out
@@ -150,41 +175,40 @@ PK_Dialog(*) {
     packs := PK_Available()
     g := Gui("+ToolWindow +AlwaysOnTop", "Supervertaler Sidekick — Language packs")
     g.SetFont("s9", "Segoe UI")
-    g.Add("Text", "xm ym w380",
-          "A pack is the sources that belong to one language – dictionaries, "
-          "term banks, lexica. Installed packs appear on the menu under "
-          "Language packs whenever their language is in the current pair "
-          "(" LP_Src " → " LP_Tgt ").")
-    if (packs.Length = 0) {
-        g.Add("Text", "xm y+12 w380 cGray", "No packs found in " PK_Dir())
-    }
+    g.Add("Text", "xm ym w400",
+          "A language pack is everything for one pair, both directions: the "
+          "dictionaries and term sites, and a MultiSearch that opens them all "
+          "at once. Tick the pairs you work in. The pack for the current pair "
+          "(" LP_Src " → " LP_Tgt ") is the one shown on the menu.")
+    if (packs.Length = 0)
+        g.Add("Text", "xm y+12 w400 cGray", "No packs found in " PK_Dir())
     installed := PK_Installed()
     boxes := []
     for p in packs {
         on := false
         for c in installed {
-            if (c = p["code"])
+            if PK_Same(c, p["pair"])
                 on := true
         }
-        cb := g.Add("CheckBox", "xm y+8 w380" (on ? " Checked" : ""),
+        cb := g.Add("CheckBox", "xm y+8 w400" (on ? " Checked" : ""),
                     p["name"] "   (" p["count"] " source" (p["count"] = 1 ? "" : "s") ")")
-        boxes.Push(Map("box", cb, "code", p["code"]))
+        boxes.Push(Map("box", cb, "pair", p["pair"]))
     }
-    g.Add("Text", "xm y+12 w380 cGray",
-          "Packs are files in packs\. Add a language by dropping a file "
-          "there and reopening this window.")
+    g.Add("Text", "xm y+12 w400 cGray",
+          "Packs are files in packs\. Add a pair by dropping a file there "
+          "and reopening this window.")
     g.Add("Button", "xm y+14 w90 Default", "OK").OnEvent("Click", Done)
     g.Add("Button", "x+6 w90", "Cancel").OnEvent("Click", (*) => g.Destroy())
     g.OnEvent("Escape", (*) => g.Destroy())
     g.Show()
 
     Done(*) {
-        codes := []
+        pairs := []
         for b in boxes {
             if b["box"].Value
-                codes.Push(b["code"])
+                pairs.Push(b["pair"])
         }
-        PK_SaveInstalled(codes)
+        PK_SaveInstalled(pairs)
         g.Destroy()
         PK_Refresh()
     }

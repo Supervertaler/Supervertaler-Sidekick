@@ -1,0 +1,71 @@
+{
+  "pair": "nl-en",
+  "name": "Dutch ⇄ English",
+  "entries": [
+    {
+      "kind": "multisearch",
+      "label": "• MultiSearch Dutch ⇄ English (all of the below at once)",
+      "value": "https://iate.europa.eu/search/byUrl?term={q}&sl={sl}&tl={tl}\nhttps://www.linguee.com/{sl_full}-{tl_full}/search?source=auto&query={q}\nhttps://www.proz.com/search/?term={q}&from={sl3b}&to={tl3b}&results_per_page=25&es=1\nhttps://context.reverso.net/translation/{sl_full}-{tl_full}/{q}\nhttps://juremy.com/search?src={sl3}&dst={tl3}&q={q}&opts=ia&tool=iws\nhttps://babelnet.org/search?word={q}&lang={sl_upper}&transLang={tl_upper}\nhttps://beijerterm.com/?q={q}&from={sl}&to={tl}\nhttps://www.mijnwoordenboek.nl/vertaal/{sl_upper}/{tl_upper}/{q}\nhttps://{sl}.wikipedia.org/w/index.php?search={q}\nhttps://{sl}.wiktionary.org/wiki/{q}\nhttps://patents.google.com/?q={q}"
+    },
+    {
+      "kind": "search",
+      "label": "• Beijerterm (technical, Dutch ⇄ English)",
+      "url": "https://beijerterm.com/?q={q}&from={sl}&to={tl}"
+    },
+    {
+      "kind": "search",
+      "label": "• Mijnwoordenboek",
+      "url": "https://www.mijnwoordenboek.nl/vertaal/{sl_upper}/{tl_upper}/{q}"
+    },
+    {
+      "kind": "search",
+      "label": "• Woordenlijst (official spelling)",
+      "url": "https://woordenlijst.org/zoeken/?q={q}"
+    },
+    {
+      "kind": "search",
+      "label": "• Synoniemen.net",
+      "url": "https://synoniemen.net/index.php?zoekterm={q}"
+    },
+    {
+      "kind": "search",
+      "label": "• Encyclo.nl",
+      "url": "https://www.encyclo.nl/begrip/{q}"
+    },
+    {
+      "kind": "search",
+      "label": "• Merriam-Webster",
+      "url": "https://www.merriam-webster.com/dictionary/{q}"
+    },
+    {
+      "kind": "search",
+      "label": "• Cambridge Dictionary",
+      "url": "https://dictionary.cambridge.org/dictionary/english/{q}"
+    },
+    {
+      "kind": "search",
+      "label": "• Collins",
+      "url": "https://www.collinsdictionary.com/dictionary/english/{q}"
+    },
+    {
+      "kind": "search",
+      "label": "• OneLook (every dictionary at once)",
+      "url": "https://www.onelook.com/?w={q}"
+    },
+    {
+      "kind": "search",
+      "label": "• Thesaurus.com",
+      "url": "https://www.thesaurus.com/browse/{q}"
+    },
+    {
+      "kind": "search",
+      "label": "• Wordnik",
+      "url": "https://www.wordnik.com/words/{q}"
+    },
+    {
+      "kind": "search",
+      "label": "• Ludwig (sentences in context)",
+      "url": "https://ludwig.guru/s/{q}"
+    }
+  ]
+}
