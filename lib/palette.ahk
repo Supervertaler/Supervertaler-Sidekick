@@ -237,6 +237,7 @@ PAL_KindLabel(c) {
         case "text":   return "snippet"
         case "keys":   return "keys"
         case "search": return "search"
+        case "multisearch": return "batch search"
         case "ai":     return "AI"
         case "url":    return "bookmark"
         case "run":    return "launch"

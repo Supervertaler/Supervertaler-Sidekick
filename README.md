@@ -26,7 +26,7 @@ no runtime, no install step.
 | 🪟 **One window** | `` ` `` opens the clipboard and the menu side by side. Arrows cross between them, folders open and close, `Alt+1`–`9` jumps straight to a section, `Ctrl+↑`/`↓` steps between them, and typing filters both panes at once. |
 | ⌘ **The palette** | `Ctrl+Alt+Space`. One search box over *everything* — clipboard history, snippets, searches, AI prompts, bookmarks and conversions at once. Type a few letters, press Enter. The menu is still there for browsing. |
 | 🌐 **QuickTrans** | `Ctrl+Alt+T`. A tab in the same window: translate the selection with several engines at once. Machine translation from MyMemory, Google, Microsoft, ModernMT and DeepL; LLMs from Claude, OpenAI, Gemini, Mistral, DeepSeek, OpenRouter, a local Ollama, or any OpenAI-compatible endpoint you point it at. Press `1`–`9` to insert one. The menu stays beside it, so you can translate, insert, then run a menu action without leaving. MyMemory needs no API key, so it works before anything is configured; keys and models for the rest are set in **Settings → AI providers & keys**, which asks each provider which models your key can actually use. |
-| 🔍 **Web searches** | Select a term, pick a source. IATE, Juremy, JurLex, Van Dale, Linguee, Proz, Reverso, BabelNet, Wikipedia, Wiktionary, Google Patents and more — 25 out of the box. Multi-search fires a whole batch at once. |
+| 🔍 **Web searches** | Select a term, pick a source. IATE, Juremy, JurLex, Van Dale, Linguee, ProZ, Reverso, BabelNet, Wikipedia, Wiktionary, Google Patents and more. Every source follows the language pair you set, so one IATE entry serves every direction. MultiSearch fires a whole batch at once, each in its own tab of a fresh browser window. |
 | 🤖 **AI actions** | Run any prompt over the selection: translate, proofread, rephrase, summarise, expand, localise. Provider-agnostic — Claude by default, OpenAI if you prefer — and non-blocking, so the rest of Sidekick keeps working while a request is in flight. |
 | 📋 **Snippet library** | Boilerplate, standard replies, special characters, regex patterns, dictionary citations — inserted at the cursor. |
 | 🔤 **Text conversions** | Upper / lower / title / sentence case, curly quotes, brackets, HTML bold, soft-hyphen removal, straight-to-curly quote conversion. |
@@ -92,7 +92,8 @@ Each menu entry has a *type* that decides what it does with your selection:
 | `keys` | Sends a key combination, e.g. `^+*` |
 | `url` | Opens a web address |
 | `run` | Launches a file or folder |
-| `search` | Copies the selection and opens a URL, with `{q}` replaced by it |
+| `search` | Copies the selection and opens a URL, with `{q}` replaced by it and `{sl}`/`{tl}` by the language pair |
+| `multisearch` | The same for several URLs, one per line, all opened at once in a new browser window |
 | `ai` | Runs an AI prompt over the selection |
 | `action` | Calls a built-in function |
 | `submenu` | Holds other entries |
@@ -103,13 +104,18 @@ Adding a new terminology source is one `search` entry:
 ```json
 {
   "kind": "search",
-  "label": "Wiktionary (English)",
-  "url": "https://en.wiktionary.org/wiki/{q}"
+  "label": "IATE",
+  "url": "https://iate.europa.eu/search/byUrl?term={q}&sl={sl}&tl={tl}"
 }
 ```
 
 The selection is UTF-8 percent-encoded before substitution, so terms containing
-`&`, `?`, `+` or accented characters work correctly.
+`&`, `?`, `+` or accented characters work correctly. `{sl}` and `{tl}` are the
+language pair — set in the QuickTrans tab, in Settings → Language pair…, or
+with Swap languages — as two-letter codes; `{sl_full}` gives the name
+(`dutch`), `{sl3}` the ISO 639-2/T code (`nld`), `{sl3b}` the bibliographic one
+(`dut`), `{sl_upper}` the capitals. A site with no code in its URL, such as
+Van Dale's dictionary ids, takes a `by_pair` map of `"nl-en": url` instead.
 
 An AI action is just as short — and every prompt is editable in the same place
 as your snippets:

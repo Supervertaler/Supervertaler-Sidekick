@@ -374,16 +374,9 @@
       "label": "WEB SEARCHES (multiple engines):"
     },
     {
-      "kind": "action",
-      "label": "• MultiSearch (NL ➜ EN)",
-      "func": "MultiSearch",
-      "arg": "NL-EN"
-    },
-    {
-      "kind": "action",
-      "label": "• MultiSearch (EN ➜ NL)",
-      "func": "MultiSearch",
-      "arg": "EN-NL"
+      "kind": "multisearch",
+      "label": "• MultiSearch (current language pair)",
+      "value": "https://patents.google.com/?q={q}\nhttps://iate.europa.eu/search/byUrl?term={q}&sl={sl}&tl={tl}\nhttps://www.proz.com/search/?term={q}&from={sl3b}&to={tl3b}&results_per_page=25&es=1\nhttps://beijerterm.com/?q={q}&from={sl}&to={tl}\nhttps://context.reverso.net/translation/{sl_full}-{tl_full}/{q}\nhttps://juremy.com/search?src={sl3}&dst={tl3}&q={q}&opts=ia&tool=iws\nhttps://www.linguee.com/{sl_full}-{tl_full}/search?source=auto&query={q}\nhttps://{sl}.wikipedia.org/w/index.php?search={q}\nhttps://{sl}.wiktionary.org/wiki/{q}\nhttps://www.acronymfinder.com/~/search/af.aspx?Acronym={q}\nhttps://babelnet.org/search?word={q}&lang={sl_upper}&transLang={tl_upper}"
     },
     {
       "kind": "separator"
@@ -400,20 +393,14 @@
     },
     {
       "kind": "search",
-      "label": "• BabelNet (nl-en)",
-      "url": "https://babelnet.org/search?word={q}&lang=NL&transLang=EN",
-      "browser": "msedge"
-    },
-    {
-      "kind": "search",
-      "label": "• BabelNet (en-nl)",
-      "url": "https://babelnet.org/search?word={q}&lang=EN&transLang=NL",
+      "label": "• BabelNet",
+      "url": "https://babelnet.org/search?word={q}&lang={sl_upper}&transLang={tl_upper}",
       "browser": "msedge"
     },
     {
       "kind": "search",
       "label": "• Beijerterm.com (Ctrl-Alt-b)",
-      "url": "https://beijerterm.com/?q={q}",
+      "url": "https://beijerterm.com/?q={q}&from={sl}&to={tl}",
       "browser": "msedge"
     },
     {
@@ -436,44 +423,29 @@
     },
     {
       "kind": "search",
-      "label": "• IATE (nl-en)",
-      "url": "https://iate.europa.eu/search/byUrl?term={q}&sl=nl&tl=en",
+      "label": "• IATE",
+      "url": "https://iate.europa.eu/search/byUrl?term={q}&sl={sl}&tl={tl}",
       "browser": "msedge"
     },
     {
       "kind": "search",
-      "label": "• IATE (en-nl)",
-      "url": "https://iate.europa.eu/search/byUrl?term={q}&sl=en&tl=nl",
+      "label": "• Juremy",
+      "url": "https://juremy.com/search?src={sl3}&dst={tl3}&q={q}&opts=ia&tool=iws",
       "browser": "msedge"
     },
     {
       "kind": "search",
-      "label": "• Juremy (nl-en)",
-      "url": "https://juremy.com/search?src=nld&dst=eng&q={q}&opts=ia&tool=iws",
+      "label": "• JurLex (Dutch/English)",
+      "by_pair": {
+        "nl-en": "https://www.lexicons.nl/lemma?searchterm={q}&SESSIONdictionary=jel_nlen",
+        "en-nl": "https://www.lexicons.nl/lemma?searchterm={q}&SESSIONdictionary=jel_ennl"
+      },
       "browser": "msedge"
     },
     {
       "kind": "search",
-      "label": "• Juremy (en-nl)",
-      "url": "https://juremy.com/search?src=eng&dst=nld&q={q}&opts=ia&tool=iws",
-      "browser": "msedge"
-    },
-    {
-      "kind": "search",
-      "label": "• JurLex (nl-en)",
-      "url": "https://www.lexicons.nl/lemma?searchterm={q}&SESSIONdictionary=jel_nlen",
-      "browser": "msedge"
-    },
-    {
-      "kind": "search",
-      "label": "• JurLex (en-nl)",
-      "url": "https://www.lexicons.nl/lemma?searchterm={q}&SESSIONdictionary=jel_ennl",
-      "browser": "msedge"
-    },
-    {
-      "kind": "search",
-      "label": "• Linguee (Dutch↔English)",
-      "url": "https://www.linguee.com/dutch-english/search?source=auto&query={q}",
+      "label": "• Linguee",
+      "url": "https://www.linguee.com/{sl_full}-{tl_full}/search?source=auto&query={q}",
       "browser": "msedge"
     },
     {
@@ -489,62 +461,47 @@
     },
     {
       "kind": "search",
-      "label": "• Proz (nl-en)",
-      "url": "https://www.proz.com/search/?term={q}&from=dut&to=eng&results_per_page=25&es=1",
+      "label": "• ProZ",
+      "url": "https://www.proz.com/search/?term={q}&from={sl3b}&to={tl3b}&results_per_page=25&es=1",
       "browser": "msedge"
     },
     {
       "kind": "search",
-      "label": "• Proz (en-nl)",
-      "url": "https://www.proz.com/search/?term={q}&from=eng&to=dut&results_per_page=25&es=1",
+      "label": "• Reverso",
+      "url": "https://context.reverso.net/translation/{sl_full}-{tl_full}/{q}",
       "browser": "msedge"
     },
     {
       "kind": "search",
-      "label": "• Reverso (nl-en)",
-      "url": "https://context.reverso.net/translation/dutch-english/{q}",
+      "label": "• Van Dale (Dutch/English)",
+      "by_pair": {
+        "nl-en": "https://zoeken.vandale.nl/?dictionaryId=gne&query={q}",
+        "en-nl": "https://zoeken.vandale.nl/?dictionaryId=gen&query={q}"
+      },
       "browser": "msedge"
     },
     {
       "kind": "search",
-      "label": "• Reverso (en-nl)",
-      "url": "https://context.reverso.net/translation/english-dutch/{q}",
+      "label": "• Wikipedia (source language)",
+      "url": "https://{sl}.wikipedia.org/w/index.php?search={q}",
       "browser": "msedge"
     },
     {
       "kind": "search",
-      "label": "• Van Dale (nl-en)",
-      "url": "https://zoeken.vandale.nl/?dictionaryId=gne&query={q}",
+      "label": "• Wikipedia (target language)",
+      "url": "https://{tl}.wikipedia.org/w/index.php?search={q}",
       "browser": "msedge"
     },
     {
       "kind": "search",
-      "label": "• Van Dale (en-nl)",
-      "url": "https://zoeken.vandale.nl/?dictionaryId=gen&query={q}",
+      "label": "• Wiktionary (source language)",
+      "url": "https://{sl}.wiktionary.org/wiki/{q}",
       "browser": "msedge"
     },
     {
       "kind": "search",
-      "label": "• Wikipedia (Dutch)",
-      "url": "https://nl.wikipedia.org/w/index.php?search={q}",
-      "browser": "msedge"
-    },
-    {
-      "kind": "search",
-      "label": "• Wikipedia (English)",
-      "url": "https://en.wikipedia.org/w/index.php?search={q}",
-      "browser": "msedge"
-    },
-    {
-      "kind": "search",
-      "label": "• Wiktionary (Dutch)",
-      "url": "https://nl.wiktionary.org/wiki/{q}",
-      "browser": "msedge"
-    },
-    {
-      "kind": "search",
-      "label": "• Wiktionary (English)",
-      "url": "https://en.wiktionary.org/wiki/{q}",
+      "label": "• Wiktionary (target language)",
+      "url": "https://{tl}.wiktionary.org/wiki/{q}",
       "browser": "msedge"
     },
     {
@@ -559,6 +516,19 @@
       "kind": "submenu",
       "label": "Settings",
       "items": [
+        {
+          "kind": "action",
+          "label": "Language pair…",
+          "func": "OpenLanguagePair"
+        },
+        {
+          "kind": "action",
+          "label": "Swap languages",
+          "func": "SwapLanguages"
+        },
+        {
+          "kind": "separator"
+        },
         {
           "kind": "action",
           "label": "Edit library…",

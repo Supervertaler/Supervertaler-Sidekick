@@ -97,8 +97,10 @@ PopulateMenu(m, items) {
                 m.Add(label, HandlerOpen(GetKey(item, "value", "")), opts)
 
             case "search":
-                m.Add(label, HandlerSearch(GetKey(item, "url", ""),
-                                           GetKey(item, "browser", "")), opts)
+                m.Add(label, HandlerSearch(item), opts)
+
+            case "multisearch":
+                m.Add(label, HandlerMultiSearch(item), opts)
 
             case "ai":
                 m.Add(label, HandlerAI(item), opts)
@@ -204,8 +206,13 @@ HandlerOpen(v) {
     return (*) => OpenTarget(v)
 }
 
-HandlerSearch(url, browser) {
-    return (*) => RunSearch(url, browser)
+HandlerSearch(item) {
+    return (*) => RunSearch(LP_UrlFor(item), GetKey(item, "browser", ""))
+}
+
+HandlerMultiSearch(item) {
+    return (*) => RunMultiSearch(GetKey(item, "value", ""),
+                                 GetKey(item, "browser", ""))
 }
 
 HandlerAction(name, arg) {
@@ -234,7 +241,11 @@ ExecuteEntry(item, sel := "") {
             OpenTarget(GetKey(item, "value", ""))
 
         case "search":
-            RunSearch(GetKey(item, "url", ""), GetKey(item, "browser", ""), sel)
+            RunSearch(LP_UrlFor(item), GetKey(item, "browser", ""), sel)
+
+        case "multisearch":
+            RunMultiSearch(GetKey(item, "value", ""),
+                           GetKey(item, "browser", ""), sel)
 
         case "ai":
             RunAIEntry(item, sel)
@@ -275,6 +286,28 @@ HandlerAI(item) {
     return (*) => AI_Ask(prompt, opts)
 }
 
+; One URL template per line, all opened at once in a new browser window for
+; the current language pair. Blank lines are skipped.
+RunMultiSearch(templates, browser := "", sel := "") {
+    query := Trim(sel != "" ? sel : SK_CopySelection())
+    if (query = "") {
+        MsgBox("Select some text first.", "Supervertaler Sidekick", "Icon! T2")
+        return
+    }
+    urls := []
+    for line in StrSplit(templates, "`n", "`r") {
+        line := Trim(line)
+        if (line != "")
+            urls.Push(LP_Expand(line, query))
+    }
+    if (urls.Length = 0) {
+        MsgBox("This batch search has no addresses in it yet. Edit it in "
+             . "the Library Editor.", "Supervertaler Sidekick", "Icon!")
+        return
+    }
+    SK_OpenInNewWindow(urls, browser)
+}
+
 ; ---------------------------------------------------------------------------
 OpenTarget(target) {
     try {
@@ -286,8 +319,11 @@ OpenTarget(target) {
 }
 
 RunSearch(urlTemplate, browser := "", sel := "") {
-    if (urlTemplate = "")
+    if (urlTemplate = "") {
+        MsgBox("This search has no address for " LP_Src " -> " LP_Tgt ".",
+               "Supervertaler Sidekick", "Icon! T3")
         return
+    }
 
     ; A caller that already captured the selection passes it in; the menu
     ; does not, and grabs it at click time.
@@ -297,7 +333,7 @@ RunSearch(urlTemplate, browser := "", sel := "") {
         return
     }
 
-    url := StrReplace(urlTemplate, "{q}", SK_UriEncode(query))
+    url := LP_Expand(urlTemplate, query)
     try {
         if (browser = "msedge")
             Run('msedge.exe "' url '"')

@@ -23,7 +23,7 @@ global LE_Nodes   := Map()   ; TreeView item id -> scope Map
 global LE_Scope   := ""      ; Map("array", arr, "start", n, "end", n)
 global LE_Dirty   := false
 
-LE_KINDS := ["text", "keys", "url", "run", "search", "ai",
+LE_KINDS := ["text", "keys", "url", "run", "search", "multisearch", "ai",
              "action", "heading", "submenu", "separator", "clipboard"]
 
 ; What the Value field means for each kind — shown as a hint so the field is
@@ -33,7 +33,8 @@ LE_HINTS := Map(
     "keys",      "A key combination, e.g.  ^+*  for Ctrl+Shift+*",
     "url",       "A web address to open.",
     "run",       "A file or folder to launch.",
-    "search",    "A search URL. Use {q} where the selected text goes.",
+    "search",    "A search URL. {q} is the selected text; {sl} and {tl} the language pair.",
+    "multisearch", "One search URL per line, all opened together in a new window.",
     "ai",        "The prompt. Your selected text is appended to it.",
     "action",    "The name of a built-in function.",
     "heading",   "Not used — a heading is just a label.",
@@ -46,6 +47,7 @@ LE_HINTS := Map(
 LE_ValueField(kind) {
     switch kind {
         case "search":    return "url"
+        case "multisearch": return "value"
         case "ai":        return "prompt"
         case "action":    return "func"
         case "url", "run": return "value"
@@ -56,7 +58,7 @@ LE_ValueField(kind) {
 ; Fields carried through an edit untouched, so per-entry AI overrides and the
 ; like are not silently dropped when someone renames an entry.
 LE_PRESERVE := ["system", "model", "provider", "effort", "maxtokens",
-                "selection", "browser", "arg"]
+                "selection", "browser", "arg", "by_pair"]
 
 OpenLibraryEditor(*) {
     global LE_Gui
@@ -508,20 +510,24 @@ LE_EntryDialog(existing) {
         needsLabel := (kind != "separator")
         needsValue := (kind = "text" || kind = "keys" || kind = "url"
                     || kind = "run" || kind = "action" || kind = "search"
-                    || kind = "ai")
+                    || kind = "multisearch" || kind = "ai")
+        ; A search whose URL is chosen per pair (by_pair) may leave the URL
+        ; field empty; that map is edited by hand in menu.json.
+        hasByPair := isEdit && (GetKey(existing, "by_pair", "") is Map)
 
         if (needsLabel && label = "") {
             MsgBox("Please give the entry a label.", "Library Editor", "Icon!")
             return
         }
-        if (kind = "search" && !InStr(value, "{q}")) {
+        if ((kind = "search" && !hasByPair && !InStr(value, "{q}"))
+            || (kind = "multisearch" && !InStr(value, "{q}"))) {
             MsgBox("A search URL needs {q} to mark where the selected text "
                    "goes.`n`nFor example:`n"
                    "https://en.wiktionary.org/wiki/{q}",
                    "Library Editor", "Icon!")
             return
         }
-        if (needsValue && Trim(value) = "") {
+        if (needsValue && Trim(value) = "" && !hasByPair) {
             MsgBox("Please fill in the Value field.", "Library Editor", "Icon!")
             return
         }

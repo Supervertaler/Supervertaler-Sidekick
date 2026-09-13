@@ -196,6 +196,10 @@ MW_Build() {
 
     MW_SelectLang(MW_QTSrc, QT_Setting("SourceLang", "Dutch"))
     MW_SelectLang(MW_QTTgt, QT_Setting("TargetLang", "English"))
+    ; These dropdowns are the language pair for the whole program - the
+    ; searches read it too - so a change here is written through.
+    MW_QTSrc.OnEvent("Change", (*) => LP_Set(MW_QTSrc.Text, MW_QTTgt.Text))
+    MW_QTTgt.OnEvent("Change", (*) => LP_Set(MW_QTSrc.Text, MW_QTTgt.Text))
 
     ; ---- right pane: the menu, outside the tabs ------------------------
     MW_Tabs.UseTab()
@@ -405,7 +409,20 @@ MW_QTSwap() {
     a := MW_QTSrc.Text, b := MW_QTTgt.Text
     MW_SelectLang(MW_QTSrc, b)
     MW_SelectLang(MW_QTTgt, a)
+    LP_Set(b, a)
     MW_QTTranslate()
+}
+
+; The pair changed somewhere else (the dialog, a swap): show it here, if the
+; window has been built. Choose() does not fire Change, so no loop.
+MW_ShowLangPair(src, tgt) {
+    global MW_QTSrc, MW_QTTgt
+    if (MW_QTSrc = "" || MW_QTTgt = "")
+        return
+    try {
+        MW_SelectLang(MW_QTSrc, src)
+        MW_SelectLang(MW_QTTgt, tgt)
+    }
 }
 
 global MW_Rendering        := false

@@ -21,6 +21,7 @@ Information:
 #Include "lib\palette.ahk"
 #Include "lib\mainwindow.ahk"
 #Include "lib\quicktrans.ahk"
+#Include "lib\langpair.ahk"
 #Include "lib\hotkeys.ahk"
 #Include "lib\shortcuts.ahk"
 #Include "lib\editor.ahk"
@@ -125,6 +126,7 @@ RegisterHotstrings(SidekickData["hotstrings"])
 CB_Init()
 
 ; Bindings come from settings.ini (see lib\hotkeys.ahk).
+LP_Load()
 RegisterConfiguredHotkeys()
 
 ; And the ones the user made themselves (see lib\shortcuts.ahk).
@@ -153,6 +155,8 @@ RegisterBuiltInActions() {
     RegisterAction("OpenHotkeyEditor", OpenHotkeyEditor)
     RegisterAction("OpenClipboardManager", CB_Show)
     RegisterAction("OpenPalette", PAL_Show)
+    RegisterAction("OpenLanguagePair", LP_Dialog)
+    RegisterAction("SwapLanguages", LP_Swap)
     RegisterAction("OpenMainWindow", MW_Show)
     RegisterAction("OpenQuickTrans", MW_ShowQuickTrans)
     RegisterAction("OpenProviderSettings", OpenProviderSettings)
@@ -174,7 +178,6 @@ RegisterBuiltInActions() {
     RegisterAction("Grammarly", Grammarly)
     RegisterAction("LogiTerm", LogiTerm)
     RegisterAction("MicrosoftTerminologySearch", MicrosoftTerminologySearch)
-    RegisterAction("MultiSearch", MultiSearch)
     RegisterAction("PutInRoundBrackets", PutInRoundBrackets)
     RegisterAction("PutInSquareBrackets", PutInSquareBrackets)
     RegisterAction("RemoveSoftHyphens", RemoveSoftHyphens)
@@ -376,59 +379,9 @@ Multi-searches (nl➜en + en➜nl)
 ====================================================
 */
 
-; Multi-search function (generalized)
-MultiSearch(SearchDirection) {
-    A_Clipboard := "" ; Clear clipboard variable
-    Send("^c") ; Copy selected text to clipboard
-    if !ClipWait(2) {
-        MsgBox("Failed to copy text to clipboard.")
-        return
-    }
-    CopiedText := A_Clipboard
-
-    ; Open a new browser window
-    BrowserPath := "C:/Program Files/Google/Chrome/Application/chrome.exe" ; Update this if needed for your browser
-    Run('"' BrowserPath '" --new-window') ; Open a new Chrome window
-    Sleep(1000) ; Allow time for the new window to open
-
-    ; Define search URLs based on direction
-    SearchURLs := []
-    if (SearchDirection = "NL-EN") {
-        SearchURLs := [
-            "https://patents.google.com/?q={phrase}",
-            "https://zoeken.vandale.nl/?dictionaryId=gne&query={phrase}",
-            "https://iate.europa.eu/search/byUrl?term={phrase}&sl=nl&tl=en",
-            "https://www.proz.com/?sp=ksearch&submit=1&term={phrase}&from=dut&to=eng",
-            "https://beijerterm.com/?q={phrase}&from=nl&to=en",
-            "https://context.reverso.net/translation/dutch-english/{phrase}",
-            "https://juremy.com/search?src=nld&dst=eng&q={phrase}",
-            "http://nl.wikipedia.org/w/index.php?search={phrase}",
-            "https://nl.wiktionary.org/wiki/{phrase}",
-            "http://www.acronymfinder.com/~/search/af.aspx?Acronym={phrase}",
-            "https://babelnet.org/search?word={phrase}&lang=NL&transLang=EN"
-        ]
-    } else if (SearchDirection = "EN-NL") {
-        SearchURLs := [
-            "https://patents.google.com/?q={phrase}",
-            "https://zoeken.vandale.nl/?dictionaryId=gne&query={phrase}",
-            "https://iate.europa.eu/search/byUrl?term={phrase}&sl=en&tl=nl",
-            "https://www.proz.com/?sp=ksearch&submit=1&term={phrase}&from=eng&to=dut",
-            "https://beijerterm.com/?q={phrase}&from=en&to=nl",
-            "https://context.reverso.net/translation/english-dutch/{phrase}",
-            "https://juremy.com/search?src=eng&dst=nld&q={phrase}",
-            "http://en.wikipedia.org/w/index.php?search={phrase}",
-            "https://www.acronymfinder.com/~/search/af.aspx?Acronym={phrase}",
-            "https://babelnet.org/search?word={phrase}&lang=EN&transLang=NL"
-        ]
-    }
-
-    ; Loop through the URLs and replace {phrase} with the encoded text
-    for Index, URL in SearchURLs {
-        SearchURL := StrReplace(URL, "{phrase}", SK_UriEncode(CopiedText))
-        Run('"' BrowserPath '" ' SearchURL) ; Open each search URL in the new window
-        Sleep(500) ; Optional: small delay to stagger tab opening
-    }
-}
+; Multi-search is now a menu entry of kind "multisearch" - see lib/langpair.ahk
+; and RunMultiSearch in lib/menu_builder.ahk. The URLs live in the menu, with
+; {sl} and {tl} for the language pair, so one entry serves every direction.
 
 ; Keyboard shortcuts for triggering searches
 ;; ^+z::MultiSearch("NL-EN") ; Ctrl+Shift+M for Dutch-to-English search
