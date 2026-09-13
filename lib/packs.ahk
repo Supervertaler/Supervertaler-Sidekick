@@ -151,20 +151,43 @@ PK_Entries() {
     return out
 }
 
-; The menu a view should show: the user's own entries, then a Language
-; pack section. Returns a new array; the original is never touched.
+; The menu a view should show: the user's own entries, with the pack for the
+; current pair folded in as one submenu — "Dutch ⇄ English (language pack)" —
+; at the top of the WEB SEARCHES section, so searches live in one place and
+; the pair is in the name. Without such a section the submenu goes at the
+; end. Returns a new array; the original is never touched.
 PK_WithPacks(menu) {
     entries := PK_Entries()
     if (entries.Length = 0)
         return menu
+    sub := Map("kind", "submenu",
+               "label", "• " PK_ActiveName() " (language pack)",
+               "items", entries,
+               "pack", entries[1]["pack"])
     out := []
-    for e in menu
+    placed := false
+    for e in menu {
         out.Push(e)
-    out.Push(Map("kind", "separator"))
-    out.Push(Map("kind", "heading", "label", "LANGUAGE PACK:"))
-    for e in entries
-        out.Push(e)
+        if (!placed && (e is Map) && GetKey(e, "kind", "") = "heading"
+                    && RegExMatch(GetKey(e, "label", ""), "i)^web searches:?$")) {
+            out.Push(sub)
+            placed := true
+        }
+    }
+    if !placed {
+        out.Push(Map("kind", "separator"))
+        out.Push(sub)
+    }
     return out
+}
+
+; The display name of the pack in use, e.g. "Dutch ⇄ English".
+PK_ActiveName() {
+    for p in PK_Available() {
+        if PK_Same(p["pair"], LP_PairKey())
+            return p["name"]
+    }
+    return LP_PairKey()
 }
 
 ; ---------------------------------------------------------------------------

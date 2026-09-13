@@ -371,19 +371,12 @@
     },
     {
       "kind": "heading",
-      "label": "WEB SEARCHES (multiple engines):"
+      "label": "WEB SEARCHES:"
     },
     {
       "kind": "multisearch",
       "label": "• MultiSearch (current language pair)",
       "value": "https://patents.google.com/?q={q}\nhttps://iate.europa.eu/search/byUrl?term={q}&sl={sl}&tl={tl}\nhttps://www.proz.com/search/?term={q}&from={sl3b}&to={tl3b}&results_per_page=25&es=1\nhttps://beijerterm.com/?q={q}&from={sl}&to={tl}\nhttps://context.reverso.net/translation/{sl_full}-{tl_full}/{q}\nhttps://juremy.com/search?src={sl3}&dst={tl3}&q={q}&opts=ia&tool=iws\nhttps://www.linguee.com/{sl_full}-{tl_full}/search?source=auto&query={q}\nhttps://{sl}.wikipedia.org/w/index.php?search={q}\nhttps://{sl}.wiktionary.org/wiki/{q}\nhttps://www.acronymfinder.com/~/search/af.aspx?Acronym={q}\nhttps://babelnet.org/search?word={q}&lang={sl_upper}&transLang={tl_upper}"
-    },
-    {
-      "kind": "separator"
-    },
-    {
-      "kind": "heading",
-      "label": "WEB SEARCHES:"
     },
     {
       "kind": "search",
