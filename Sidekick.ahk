@@ -21,6 +21,7 @@ Information:
 #Include "lib\palette.ahk"
 #Include "lib\mainwindow.ahk"
 #Include "lib\quicktrans.ahk"
+#Include "lib\scratchpad.ahk"
 #Include "lib\langpair.ahk"
 #Include "lib\packs.ahk"
 #Include "lib\hotkeys.ahk"
@@ -126,6 +127,11 @@ RegisterHotstrings(SidekickData["hotstrings"])
 ; Start watching the clipboard (see lib\clipboard.ahk).
 CB_Init()
 
+; The scratchpad saves itself a moment after typing stops, so an exit can
+; still catch a sentence in flight - including the one a reload causes,
+; which is the common way this script ends.
+OnExit(SP_OnExit)
+
 ; Bindings come from settings.ini (see lib\hotkeys.ahk).
 LP_Load()
 RegisterConfiguredHotkeys()
@@ -161,6 +167,7 @@ RegisterBuiltInActions() {
     RegisterAction("OpenLanguagePacks", PK_Dialog)
     RegisterAction("OpenMainWindow", MW_Show)
     RegisterAction("OpenQuickTrans", MW_ShowQuickTrans)
+    RegisterAction("OpenScratchpad", MW_ShowScratchpad)
     RegisterAction("OpenProviderSettings", OpenProviderSettings)
     RegisterAction("OpenExpansionEditor", OpenExpansionEditor)
     RegisterAction("ReloadSidekick", (*) => Reload())

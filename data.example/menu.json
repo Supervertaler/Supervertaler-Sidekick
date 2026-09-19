@@ -15,6 +15,12 @@
       "menuonly": true
     },
     {
+      "kind": "action",
+      "label": "Scratchpad…  (Ctrl+Alt+N)",
+      "func": "OpenScratchpad",
+      "menuonly": true
+    },
+    {
       "kind": "separator"
     },
     {

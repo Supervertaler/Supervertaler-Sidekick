@@ -16,7 +16,8 @@
 global HK_Registered := Map()    ; binding string -> true, for what is live
 
 ; Display order in the editor, and the order things register in.
-HK_ORDER := ["Palette", "QuickTrans", "Menu", "MenuCentred", "Clipboard", "LibraryEditor",
+HK_ORDER := ["Palette", "QuickTrans", "Scratchpad", "Menu", "MenuCentred",
+             "Clipboard", "LibraryEditor",
              "GoogleSearch", "DesktopSearch", "ConfirmSegment",
              "Reload"]
 
@@ -24,6 +25,7 @@ HK_Labels() {
     static labels := Map(
         "Palette",       "Open the palette (search everything)",
         "QuickTrans",    "Translate the selection (QuickTrans)",
+        "Scratchpad",    "Jot a note (Scratchpad)",
         "Menu",          "Open Supervertaler Sidekick (clipboard + menu)",
         "MenuCentred",   "Classic popup menu",
         "Clipboard",     "Clipboard history",
@@ -43,6 +45,7 @@ HK_Does() {
     static does := Map(
         "Palette",       "opens the palette window",
         "QuickTrans",    "translates the selection in the main window",
+        "Scratchpad",    "opens the main window on the Scratchpad tab",
         "Menu",          "opens the main window",
         "MenuCentred",   "opens the classic popup menu",
         "Clipboard",     "opens the clipboard window",
@@ -59,6 +62,7 @@ HK_Actions() {
     static actions := Map(
         "Palette",       () => PAL_Show(),
         "QuickTrans",    () => MW_ShowQuickTrans(),
+        "Scratchpad",    () => MW_ShowScratchpad(),
         "Menu",          () => MW_Show(),
         "MenuCentred",   () => ShowMainMenu(132, 164),
         "Clipboard",     () => CB_Show(),
@@ -78,6 +82,9 @@ HK_Defaults() {
     static defaults := Map(
         "Palette",       "^!Space",
         "QuickTrans",    "^!t",
+        ; A second key, and a shorter path than the menu one: the note is
+        ; only worth having if it is open before the thought has gone.
+        "Scratchpad",    "^!n",
         "Menu",          "``",
         "MenuCentred",   "^``",
         "Clipboard",     "^!c",

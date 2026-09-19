@@ -42,15 +42,117 @@ global MW_QTArrow   := ""
 global MW_QTSwapBtn := ""
 global MW_QTGoBtn   := ""
 
+; The third tab is one box and nothing else — see lib\scratchpad.ahk for
+; what happens to what you type in it.
+global MW_Scratch   := ""
+
+; ---------------------------------------------------------------------------
+; Text size.
+;
+; NOT a zoom of the window. The clipboard list, the menu tree, the labels and
+; the buttons stay exactly where and what they are; what grows is the text you
+; sit and read and write — the note, the source box, the translations. Those
+; are what your eyes are on, and a monitor two feet away wants a different
+; size from a laptop panel on your knees.
+;
+; Kept in settings.ini, so the size you like is the size it opens at.
+; ---------------------------------------------------------------------------
+global MW_OpenTabDDL := ""
+global MW_OpenTabLbl := ""
+
+; ---------------------------------------------------------------------------
+; Which tab the window opens on.
+;
+; The QuickTrans and Scratchpad keys say which tab they want and always get
+; it. This is for the plain one — the backtick — which until now always landed
+; on the clipboard because that is what it was built around. Which tab that
+; should be depends on what you are doing this week, so it is a choice, and it
+; sits on the tab strip next to the tabs it is about rather than three dialogs
+; away in a settings window.
+;
+; "Last used" is stored as the word rather than a number, so a tab added later
+; cannot silently turn into a different meaning.
+; ---------------------------------------------------------------------------
+MW_OPENTAB_NAMES := ["Clipboard", "QuickTrans", "Scratchpad", "Last used"]
+MW_TAB_COUNT := 3
+
+MW_OpenTabPref() {
+    global MW_TAB_COUNT
+    v := Trim(AI_Ini(SettingsFile(), "Window", "OpenTab", "1"))
+    if (v = "last")
+        return "last"
+    n := QT_Int(v, 1)
+    return (n >= 1 && n <= MW_TAB_COUNT) ? n : 1
+}
+
+MW_DefaultTab() {
+    global MW_TAB_COUNT
+    pref := MW_OpenTabPref()
+    if (pref != "last")
+        return pref
+    n := QT_Int(AI_Ini(SettingsFile(), "Window", "LastTab", "1"), 1)
+    return (n >= 1 && n <= MW_TAB_COUNT) ? n : 1
+}
+
+global MW_TextFont := 0        ; points; 0 until settings.ini has been read
+
+MW_TEXT_MIN := 7
+MW_TEXT_MAX := 28
+MW_TEXT_DEF := 9
+
+MW_TextSize() {
+    global MW_TextFont, MW_TEXT_DEF
+    if (MW_TextFont = 0)
+        MW_TextFont := MW_ClampText(QT_Int(AI_Ini(SettingsFile(), "Window",
+                                                  "TextSize", ""), MW_TEXT_DEF))
+    return MW_TextFont
+}
+
+MW_ClampText(n) {
+    global MW_TEXT_MIN, MW_TEXT_MAX
+    if (n < MW_TEXT_MIN)
+        return MW_TEXT_MIN
+    if (n > MW_TEXT_MAX)
+        return MW_TEXT_MAX
+    return n
+}
+
+; How tall one line of that text is, and how wide an average character. The
+; QuickTrans tab gives every translation as many lines as it needs, which
+; means measuring in both. 15px and 6.6px at 9pt, found the hard way.
+MW_TextLineH() {
+    return Round(15 * MW_TextSize() / 9)
+}
+
+MW_TextCharW() {
+    return 6.6 * MW_TextSize() / 9
+}
+
+; The controls that carry it. Everything else in the window keeps the 9pt the
+; Gui was built with.
+MW_ApplyTextFont() {
+    global MW_Scratch, MW_QTSource, MW_QTRowCtl
+    f := "s" MW_TextSize()
+    try MW_Scratch.SetFont(f, "Segoe UI")
+    try MW_QTSource.SetFont(f, "Segoe UI")
+    for r in MW_QTRowCtl
+        try r["box"].SetFont(f, "Segoe UI")
+}
+
 ; A ceiling only, so a bad engine table cannot spawn controls forever.
 MW_QT_MAXROWS := 20
 
 
 ; ---------------------------------------------------------------------------
-; tab: 1 = clipboard (default), 2 = QuickTrans. Opening straight onto the
-; QuickTrans tab is what the Ctrl+Alt+T hotkey does.
-MW_Show(tab := 1) {
+; tab: 1 = clipboard, 2 = QuickTrans, 3 = Scratchpad, or 0 — the default —
+; meaning "whichever tab is configured", which is what the plain shortcut
+; passes. The QuickTrans and Scratchpad hotkeys name their tab and so are
+; never overridden by the preference.
+MW_Show(tab := 0) {
     global MW_Gui, MW_Source, MW_Selection, MW_Search, MW_Tabs
+
+    if (tab = 0)
+        tab := MW_DefaultTab()
 
     try MW_Source := WinGetID("A")
     catch
@@ -71,9 +173,14 @@ MW_Show(tab := 1) {
     try MW_Search.Value := ""
     MW_RefreshClips()
     MW_RefreshTree()
+    MW_ShowOpenTabPref()
     MW_ShowRestored()
 
-    if (tab = 2) {
+    if (tab = 3) {
+        MW_Tabs.Value := 3
+        MW_SyncScratch()
+        MW_FocusScratch()
+    } else if (tab = 2) {
         MW_Tabs.Value := 2
         MW_FocusResults()
         MW_MarkFocus("clips")
@@ -129,11 +236,20 @@ MW_ShowQuickTrans(*) {
                . "again, or type it above and press Ctrl+Enter.")
 }
 
+; The Scratchpad hotkey. Deliberately does nothing but open the window on
+; the tab with the caret at the end of the note: the whole value of it is the
+; gap between pressing the key and typing the first word, so it copies no
+; selection, asks no question and waits for nothing.
+MW_ShowScratchpad(*) {
+    MW_Show(3)
+}
+
 MW_Build() {
     global MW_Gui, MW_Search, MW_Clips, MW_Tree, MW_Status
     global MW_Tabs, MW_QTSource, MW_QTSrc, MW_QTTgt
     global MW_QTRowCtl, MW_QTLabel, MW_QTFromLbl, MW_QTArrow
-    global MW_QTSwapBtn, MW_QTGoBtn
+    global MW_QTSwapBtn, MW_QTGoBtn, MW_Scratch
+    global MW_OpenTabDDL, MW_OpenTabLbl, MW_OPENTAB_NAMES
     global QT_OnUpdate
 
     MW_Gui := Gui("+Resize +MinSize720x420", "Supervertaler Sidekick")
@@ -151,7 +267,7 @@ MW_Build() {
 
     ; ---- left pane: two tabs ------------------------------------------
     MW_Tabs := MW_Gui.Add("Tab3", "xm y+10 w540 h430",
-                          ["Clipboard", "QuickTrans"])
+                          ["Clipboard", "QuickTrans", "Scratchpad"])
     MW_Tabs.OnEvent("Change", (*) => MW_OnTabChange())
 
     MW_Tabs.UseTab(1)
@@ -171,7 +287,11 @@ MW_Build() {
     tw := 512
 
     MW_QTLabel   := MW_Gui.Add("Text", "x" tx " y" ty " w60", "Source:")
+    ; The source box is text, so it is one of the controls that follows the
+    ; text size rather than the window's.
+    MW_Gui.SetFont("s" MW_TextSize())
     MW_QTSource  := MW_Gui.Add("Edit", "x" tx " y" (ty + 18) " w" tw " r3 Multi")
+    MW_Gui.SetFont("s9")
     MW_QTSource.OnEvent("Change", (*) => MW_QTLayout())
 
     ly := ty + 76       ; the language row
@@ -200,6 +320,34 @@ MW_Build() {
     ; searches read it too - so a change here is written through.
     MW_QTSrc.OnEvent("Change", (*) => LP_Set(MW_QTSrc.Text, MW_QTTgt.Text))
     MW_QTTgt.OnEvent("Change", (*) => LP_Set(MW_QTSrc.Text, MW_QTTgt.Text))
+
+    ; ---- tab 3: the scratchpad ----------------------------------------
+    ; Explicit coordinates for the same reason as the tab above: xp/yp drift
+    ; inside a tab control. MW_OnSize moves it from here on.
+    MW_Tabs.UseTab(3)
+    MW_Gui.SetFont("s" MW_TextSize())
+    MW_Scratch := MW_Gui.Add("Edit", "x" tx " y" ty " w524 h396 "
+                           . "Multi WantReturn VScroll")
+    MW_Gui.SetFont("s9")
+
+    ; The value goes in BEFORE the handler: setting it fires Change, and a
+    ; load is not an edit — it would mark the note dirty and schedule a save
+    ; that rewrites the file with what was just read out of it.
+    MW_Scratch.Value := SP_Load()
+    MW_Scratch.OnEvent("Change", (*) => SP_Touch(MW_Scratch.Value))
+    MW_Scratch.OnEvent("Focus", (*) => MW_SetStatus(SP_StatusText()))
+
+    ; ---- the strip's spare space: which tab this window opens on -------
+    ; Outside UseTab, so it shows on every tab rather than belonging to one,
+    ; and created after the tab control so it draws over the strip instead of
+    ; under it. MW_PlaceOpenTab puts it where there is room.
+    MW_Tabs.UseTab()
+    MW_Gui.SetFont("s8")
+    MW_OpenTabLbl := MW_Gui.Add("Text", "x0 y0 w" 54 " cGray", "Opens on:")
+    MW_OpenTabDDL := MW_Gui.Add("DropDownList", "x0 y0 w96", MW_OPENTAB_NAMES)
+    MW_Gui.SetFont("s9")
+    MW_OpenTabDDL.OnEvent("Change", (*) => MW_SaveOpenTab())
+    MW_ShowOpenTabPref()
 
     ; ---- right pane: the menu, outside the tabs ------------------------
     MW_Tabs.UseTab()
@@ -238,8 +386,10 @@ MW_QTEnsureSlots(n) {
         ; guessing whether that was Haiku or Opus.
         MW_Gui.SetFont("s8")
         mdl := MW_Gui.Add("Text", "x42 y0 w104 cGray", "")
-        MW_Gui.SetFont("s9 Norm")
+        ; The translation is text; the label beside it is furniture.
+        MW_Gui.SetFont("s" MW_TextSize() " Norm")
         box := MW_Gui.Add("Edit", "x156 y0 w300 r2 Multi ReadOnly -VScroll", "")
+        MW_Gui.SetFont("s9 Norm")
         box.OnEvent("Focus", MW_MakeRowFocus(i))
         num.Visible := false
         eng.Visible := false
@@ -289,6 +439,68 @@ MW_SelectLang(ctrl, name) {
     ctrl.Choose(1)
 }
 
+; The dropdown shows what settings.ini says. Choose() does not raise Change,
+; so this cannot loop back into a save.
+MW_ShowOpenTabPref() {
+    global MW_OpenTabDDL, MW_TAB_COUNT
+    if (MW_OpenTabDDL = "")
+        return
+    pref := MW_OpenTabPref()
+    try MW_OpenTabDDL.Choose(pref = "last" ? MW_TAB_COUNT + 1 : pref)
+}
+
+MW_SaveOpenTab() {
+    global MW_OpenTabDDL, MW_TAB_COUNT, MW_OPENTAB_NAMES
+    n := MW_OpenTabDDL.Value
+    if (n < 1 || n > MW_TAB_COUNT + 1)
+        return
+    try IniWrite(n > MW_TAB_COUNT ? "last" : n, SettingsFile(), "Window",
+                 "OpenTab")
+    MW_SetStatus(n > MW_TAB_COUNT
+        ? "Sidekick will open on whichever tab you were last on."
+        : "Sidekick will open on the " MW_OPENTAB_NAMES[n] " tab.")
+}
+
+; Right-aligned on the tab strip, in the space the tab labels leave. If the
+; window is narrow enough that it would sit on top of them, it is hidden
+; rather than overlapped — the tabs matter more than the setting does.
+MW_PlaceOpenTab() {
+    global MW_Tabs, MW_OpenTabDDL, MW_OpenTabLbl
+
+    if (MW_OpenTabDDL = "")
+        return
+    try {
+        MW_Tabs.GetPos(&tabX, &tabY, &tabW, &tabH)
+        ddW  := 96
+        lblW := 54
+        x := tabX + tabW - ddW - 8
+
+        ; Where the last tab's label ends, asked of the control rather than
+        ; guessed: the labels are as wide as their text and the font.
+        used := MW_TabsRight()
+        if (x - lblW - 8 < tabX + used + 12) {
+            MW_OpenTabDDL.Visible := false
+            MW_OpenTabLbl.Visible := false
+            return
+        }
+
+        MW_OpenTabLbl.Move(x - lblW - 6, tabY + 6, lblW)
+        MW_OpenTabDDL.Move(x, tabY + 2, ddW)
+        MW_OpenTabLbl.Visible := true
+        MW_OpenTabDDL.Visible := true
+    }
+}
+
+; The right edge of the last tab, in the tab control's own coordinates.
+MW_TabsRight() {
+    global MW_Tabs, MW_TAB_COUNT
+    rc := Buffer(16, 0)
+    ; TCM_GETITEMRECT, and the item index is 0-based.
+    if !SendMessage(0x130A, MW_TAB_COUNT - 1, rc.Ptr, MW_Tabs)
+        return 99999            ; unknown, so assume there is no room
+    return NumGet(rc, 8, "Int")
+}
+
 MW_ActiveTab() {
     global MW_Tabs
     try return MW_Tabs.Value
@@ -298,6 +510,11 @@ MW_ActiveTab() {
 
 MW_OnTabChange() {
     global MW_Clips
+    if (MW_ActiveTab() = 3) {
+        MW_SyncScratch()
+        MW_FocusScratch()
+        return                  ; its own status line, not the clipboard's
+    }
     if (MW_ActiveTab() = 2) {
         MW_QTLayout()
         MW_FocusResults()
@@ -585,11 +802,13 @@ MW_QTLayoutBody() {
     left   := tabX + 8
     width  := tabW - 20
     bottom := tabY + tabH - 10
-    lineH  := 15
+    ; The boxes hold text at the text size, so their heights are measured in
+    ; its lines. Everything else on this tab is furniture at 9pt.
+    lineH  := MW_TextLineH()
 
     ; ---- source box, sized to its contents -----------------------------
     srcW := width
-    srcChars := Round(srcW / 6.6)
+    srcChars := Round(srcW / MW_TextCharW())
     if (srcChars < 20)
         srcChars := 20
 
@@ -623,7 +842,7 @@ MW_QTLayoutBody() {
     boxW    := width - 130
     if (boxW < 120)
         boxW := 120
-    perLine := Round(boxW / 6.6)
+    perLine := Round(boxW / MW_TextCharW())
     if (perLine < 20)
         perLine := 20
 
@@ -738,6 +957,44 @@ MW_EditingSource() {
         return false
 }
 
+; True while the caret is in the note, so every key that means something to
+; this window elsewhere - digits, arrows, Enter, Home/End - is just typing.
+MW_EditingScratch() {
+    global MW_Gui, MW_Scratch
+    if (MW_ActiveTab() != 3)
+        return false
+    try return ControlGetFocus("ahk_id " MW_Gui.Hwnd) = MW_Scratch.Hwnd
+    catch
+        return false
+}
+
+; The caret is parked after the last character every time, and that is not a
+; convenience — an Edit that is given the focus arrives with its whole
+; contents SELECTED, so the first character typed would replace the note
+; rather than continue it. EM_SETSEL collapses the selection and puts the
+; caret where writing carries on from; Ctrl+End would do the same, but not by
+; firing keystrokes at a window that may not have settled yet.
+MW_FocusScratch() {
+    global MW_Scratch
+    try {
+        MW_Scratch.Focus()
+        SendMessage(0x00B1, -1, -1, MW_Scratch)     ; EM_SETSEL(-1, -1)
+        SendMessage(0x00B7,  0,  0, MW_Scratch)     ; EM_SCROLLCARET
+    }
+    MW_SetStatus(SP_StatusText())
+}
+
+; The note may have been edited by hand since this window last showed it —
+; in Notepad, or by a sync. What is in the box is what gets written back, so
+; it has to be the current text before anyone types into it. Runs on every
+; arrival at the tab, and costs one FileGetTime when nothing has changed.
+MW_SyncScratch() {
+    global MW_Scratch
+    if !SP_ChangedOnDisk()
+        return
+    try MW_Scratch.Value := SP_Load()
+}
+
 MW_QTInsertRow(n) {
     global MW_QTRows
     if (n < 1 || n > MW_QTRows.Length)
@@ -759,7 +1016,7 @@ MW_QTInsertSelected() {
 MW_Copy() {
     global MW_QTRows, MW_QTSel, MW_Shown, MW_Clips, MW_Tree
 
-    if (MW_EditingSource() || MW_FocusedIs(MW_Tree)) {
+    if (MW_EditingSource() || MW_EditingScratch() || MW_FocusedIs(MW_Tree)) {
         Send("^c")
         return
     }
@@ -1027,15 +1284,11 @@ MW_FocusedIs(ctrl) {
 ; the search box. Left/Right do the crossing between panes.
 ; ---------------------------------------------------------------------------
 MW_Keys() {
-    global MW_Gui
+    global MW_Gui, MW_TEXT_DEF
+
+    ; ---- always ours, wherever the focus is ---------------------------
     HotIfWinActive("ahk_id " MW_Gui.Hwnd)
 
-    Hotkey("Down",        (*) => MW_Down(),  "On")
-    Hotkey("Up",          (*) => MW_Up(),    "On")
-    Hotkey("Right",       (*) => MW_Right(), "On")
-    Hotkey("Left",        (*) => MW_Left(),  "On")
-    Hotkey("Enter",       (*) => MW_Activate(), "On")
-    Hotkey("NumpadEnter", (*) => MW_Activate(), "On")
     Hotkey("Tab",         (*) => MW_TogglePane(), "On")
     Hotkey("^f",          (*) => MW_FocusSearch(), "On")
 
@@ -1043,29 +1296,123 @@ MW_Keys() {
     Hotkey("^Tab",        (*) => MW_NextTab(),  "On")
     Hotkey("^1",          (*) => MW_GoTab(1),   "On")
     Hotkey("^2",          (*) => MW_GoTab(2),   "On")
-    Hotkey("^Enter",      (*) => MW_QTTranslate(), "On")
-    Hotkey("^+Enter",     (*) => MW_QTFetchAI(), "On")
+    Hotkey("^3",          (*) => MW_GoTab(3),   "On")
+    ; Scoped to the tab they belong to. Unscoped, Ctrl+Enter from another tab
+    ; sent every engine off translating a box nobody could see.
+    Hotkey("^Enter",      (*) => MW_OnTab(2, MW_QTTranslate), "On")
+    Hotkey("^+Enter",     (*) => MW_OnTab(2, MW_QTFetchAI), "On")
     Hotkey("^c",          (*) => MW_Copy(), "On")
 
-    ; Plain digits insert a translation, but only on the QuickTrans tab and
-    ; only when the caret is not in the source box.
-    Loop 9 {
-        d := A_Index
-        Hotkey(d "", MW_MakeDigit(d), "On")
-    }
-
-    ; Section jumping
-    Hotkey("^Down",       (*) => MW_StepSection(1),  "On")
-    Hotkey("^Up",         (*) => MW_StepSection(-1), "On")
-    Hotkey("Home",        (*) => MW_GoEdge(1),  "On")
-    Hotkey("End",         (*) => MW_GoEdge(-1), "On")
+    ; Text size. Ctrl+= and Ctrl+- are where every browser puts it; the
+    ; shifted and numpad forms are there because the key is labelled + on
+    ; most keyboards and people press what is printed.
+    Hotkey("^=",          (*) => MW_TextZoom(1),  "On")
+    Hotkey("^+=",         (*) => MW_TextZoom(1),  "On")
+    Hotkey("^NumpadAdd",  (*) => MW_TextZoom(1),  "On")
+    Hotkey("^-",          (*) => MW_TextZoom(-1), "On")
+    Hotkey("^NumpadSub",  (*) => MW_TextZoom(-1), "On")
+    Hotkey("^0",          (*) => MW_TextZoomTo(MW_TEXT_DEF), "On")
 
     Loop 9 {
         n := A_Index
         Hotkey("!" n, MW_MakeSectionJump(n), "On")
     }
 
-    HotIfWinActive()
+    ; ---- keys that are plain typing inside a text box -----------------
+    ; These are registered under a condition rather than caught and re-sent.
+    ; A hotkey that swallows a key and sends it again puts it back a beat
+    ; late: its handler runs on a new thread while the rest of what you typed
+    ; is still arriving, so "7 copies" came out "  copies7". Under a
+    ; condition the key is not hooked at all while the caret is in the note
+    ; or the source box, and Windows delivers it in order like any other.
+    HotIf(MW_NavKeys)
+
+    Hotkey("Down",        (*) => MW_Down(),  "On")
+    Hotkey("Up",          (*) => MW_Up(),    "On")
+    Hotkey("Right",       (*) => MW_Right(), "On")
+    Hotkey("Left",        (*) => MW_Left(),  "On")
+    Hotkey("Home",        (*) => MW_GoEdge(1),  "On")
+    Hotkey("End",         (*) => MW_GoEdge(-1), "On")
+    Hotkey("^Down",       (*) => MW_StepSection(1),  "On")
+    Hotkey("^Up",         (*) => MW_StepSection(-1), "On")
+
+    ; A digit inserts a translation on the QuickTrans tab; anywhere else it
+    ; is a digit.
+    Loop 9 {
+        d := A_Index
+        Hotkey(d "", MW_MakeDigit(d), "On")
+    }
+
+    ; ---- Enter --------------------------------------------------------
+    ; Runs whatever is selected — except in the note, where a paragraph
+    ; break is the only thing it could sensibly mean.
+    HotIf(MW_EnterKey)
+    Hotkey("Enter",       (*) => MW_Activate(), "On")
+    Hotkey("NumpadEnter", (*) => MW_Activate(), "On")
+
+    HotIf()
+}
+
+; The conditions above. Both are evaluated on every press of the keys they
+; govern, so they stay cheap, and both answer false if anything goes wrong —
+; which leaves the key doing what it does everywhere else on the machine.
+MW_NavKeys(*) {
+    return MW_WindowHasFocus() && !MW_EditingSource() && !MW_EditingScratch()
+}
+
+MW_EnterKey(*) {
+    return MW_WindowHasFocus() && !MW_EditingScratch()
+}
+
+MW_WindowHasFocus() {
+    global MW_Gui
+    if (MW_Gui = "")
+        return false
+    try return WinActive("ahk_id " MW_Gui.Hwnd) != 0
+    catch
+        return false
+}
+
+; ---------------------------------------------------------------------------
+; Zoom
+;
+; A control that already exists keeps the font it was made with until it is
+; told otherwise — Gui.SetFont only governs the ones made after it. So both
+; happen: the boxes on screen are re-fonted one by one, and the Gui's own
+; font is left alone so the furniture stays 9pt.
+;
+; The boxes then have to be re-measured, because a translation is given as
+; many lines as it needs and the size of a line has just changed.
+; ---------------------------------------------------------------------------
+MW_TextZoom(delta) {
+    MW_TextZoomTo(MW_TextSize() + delta)
+}
+
+MW_TextZoomTo(points) {
+    global MW_TextFont, MW_TEXT_MIN, MW_TEXT_MAX
+
+    want := MW_ClampText(points)
+    if (want = MW_TextSize()) {
+        MW_SetStatus("Text size " want "pt — "
+                   . (want = MW_TEXT_MIN ? "as small as it goes."
+                    : want = MW_TEXT_MAX ? "as large as it goes."
+                                         : "unchanged."))
+        return
+    }
+    MW_TextFont := want
+
+    MW_ApplyTextFont()
+    if (MW_ActiveTab() = 2)
+        MW_QTLayout()
+
+    try IniWrite(MW_TextFont, SettingsFile(), "Window", "TextSize")
+    MW_SetStatus("Text size " MW_TextFont "pt   ·   Ctrl+= bigger  ·  "
+               . "Ctrl+- smaller  ·  Ctrl+0 back to " MW_TEXT_DEF "pt")
+}
+
+MW_OnTab(n, action) {
+    if (MW_ActiveTab() = n)
+        action()
 }
 
 MW_MakeSectionJump(n) {
@@ -1076,15 +1423,11 @@ MW_MakeDigit(n) {
     return (*) => MW_Digit(n)
 }
 
-; A digit means three different things depending on where you are: text in
-; the source box, a translation to insert on the QuickTrans tab, and a
-; character to search for anywhere else.
+; A digit only reaches this at all when the caret is not in a text box —
+; see MW_NavKeys. On the QuickTrans tab it inserts a translation; anywhere
+; else it is the start of something to search for.
 MW_Digit(n) {
     global MW_Search
-    if MW_EditingSource() {
-        Send(n "")
-        return
-    }
     if (MW_ActiveTab() = 2) {
         MW_QTInsertRow(n)
         return
@@ -1103,7 +1446,7 @@ MW_GoTab(n) {
 }
 
 MW_NextTab() {
-    MW_GoTab(MW_ActiveTab() = 1 ? 2 : 1)
+    MW_GoTab(Mod(MW_ActiveTab(), 3) + 1)
 }
 
 ; Home/End go to the ends of whichever pane has focus.
@@ -1141,7 +1484,7 @@ MW_FocusSearch() {
 MW_Down() {
     global MW_Search, MW_Tree
     if MW_FocusedIs(MW_Search) {
-        MW_FocusClips()
+        MW_FocusLeft()
         return
     }
     if (MW_ActiveTab() = 2 && !MW_FocusedIs(MW_Tree) && !MW_EditingSource()) {
@@ -1231,6 +1574,10 @@ MW_Left() {
 
 ; Back to whichever tab is on show, not always the clipboard.
 MW_FocusLeft() {
+    if (MW_ActiveTab() = 3) {
+        MW_FocusScratch()
+        return
+    }
     if (MW_ActiveTab() = 2) {
         MW_FocusResults()
         MW_MarkFocus("clips")
@@ -1425,6 +1772,12 @@ MW_RunTree() {
 
 MW_Hide(*) {
     global MW_Gui
+    ; Whatever is in the note goes to disk now, rather than a second later
+    ; when the timer would have got to it.
+    SP_FlushNow()
+    ; Recorded whether or not "Last used" is the setting, so that choosing it
+    ; later means something straight away rather than after one more close.
+    try IniWrite(MW_ActiveTab(), SettingsFile(), "Window", "LastTab")
     MW_SaveGeometry()
     try MW_Gui.Hide()
     return true
@@ -1503,7 +1856,7 @@ QT_Int(v, default) {
 
 MW_OnSize(thisGui, minMax, width, height) {
     global MW_Search, MW_Clips, MW_Tree, MW_Status
-    global MW_Tabs, MW_QTSource
+    global MW_Tabs, MW_QTSource, MW_Scratch
     if (minMax = -1)
         return
 
@@ -1531,7 +1884,16 @@ MW_OnSize(thisGui, minMax, width, height) {
         ; list takes whatever is left.
         MW_QTSource.Move(, , inner - 8)
 
+        ; Tab 3: the note takes the whole tab — the same rectangle as the
+        ; clipboard list, taken from it rather than written down twice. It
+        ; was built from the QuickTrans tab's first row, which sits lower
+        ; than the top of the tab body, and so hung past the bottom of it.
+        MW_Clips.GetPos(&clipX, &clipY)
+        MW_Scratch.Move(clipX, clipY, inner, h - 34)
+
         MW_Tree.Move(pad + leftW + gap, , rightW, h)
         MW_Status.Move(, , width - pad * 2)
     }
+
+    MW_PlaceOpenTab()
 }
