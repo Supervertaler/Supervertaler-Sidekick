@@ -4,7 +4,7 @@
 
 Part of the Supervertaler family, alongside [Supervertaler for Trados](https://github.com/Supervertaler/Supervertaler-for-Trados) and Supervertaler for memoQ. Those work inside your CAT tool; Sidekick works everywhere else.
 
-Select text anywhere in Windows — in a CAT tool, a browser, a PDF, an email —
+Select text anywhere in Windows – in a CAT tool, a browser, a PDF, an email –
 press `` ` ``, and act on it: look it up across a dozen terminology sources,
 run an AI prompt over it, convert its case, wrap it in quotes, or paste a
 snippet in its place.
