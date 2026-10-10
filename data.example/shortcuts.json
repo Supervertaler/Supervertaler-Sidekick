@@ -2,10 +2,10 @@
   "version": 1,
   "shortcuts": [
     {
-      "label": "Beijerterm.com",
+      "label": "Beijerdictionary.com",
       "key": "^!b",
       "kind": "search",
-      "url": "https://beijerterm.com/?q={q}"
+      "url": "https://beijerdictionary.com/?q={q}"
     }
   ]
 }
