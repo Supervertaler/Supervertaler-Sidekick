@@ -2,7 +2,7 @@
   "version": 1,
   "shortcuts": [
     {
-      "label": "Beijerdictionary.com",
+      "label": "BeijerDictionary.com",
       "key": "^!b",
       "kind": "search",
       "url": "https://beijerdictionary.com/?q={q}"

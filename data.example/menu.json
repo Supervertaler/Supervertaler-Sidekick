@@ -398,7 +398,7 @@
     },
     {
       "kind": "search",
-      "label": "• Beijerdictionary.com (Ctrl-Alt-b)",
+      "label": "• BeijerDictionary.com (Ctrl-Alt-b)",
       "url": "https://beijerdictionary.com/?q={q}&from={sl}&to={tl}",
       "browser": "msedge"
     },
