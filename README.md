@@ -140,8 +140,9 @@ Optional per-entry overrides: `system`, `model`, `provider`, `effort`,
 ## Layout
 
 ```
-Sidekick.ahk        hotkeys, text conversions, local searches
+Sidekick.ahk        start-up, text conversions, local searches
 lib/
+  hotkeys.ahk         the built-in shortcuts and their window
   mainwindow.ahk      the backtick window (clipboard + menu)
   quicktrans.ahk      multi-engine translation of the selection
   palette.ahk         the search-everything window

@@ -19,6 +19,8 @@ global HK_Registered := Map()    ; binding string -> true, for what is live
 HK_ORDER := ["Palette", "QuickTrans", "Scratchpad", "Menu", "MenuCentred",
              "Clipboard", "LibraryEditor",
              "GoogleSearch", "DesktopSearch", "ConfirmSegment",
+             "Euro", "EnDash", "EmDash", "OpenQuote", "CloseQuote",
+             "QuoteSelection", "Bullet", "Backtick",
              "Reload"]
 
 HK_Labels() {
@@ -33,6 +35,14 @@ HK_Labels() {
         "GoogleSearch",  "Google the selection",
         "DesktopSearch", "Search the desktop (dtSearch)",
         "ConfirmSegment","Confirm segment (memoQ, Trados)",
+        "Euro",          "Type a euro sign",
+        "EnDash",        "Type an en dash",
+        "EmDash",        "Type an em dash",
+        "OpenQuote",     "Type an opening single quote",
+        "CloseQuote",    "Type a closing single quote",
+        "QuoteSelection","Single curly quotes around the selection",
+        "Bullet",        "Type a bullet",
+        "Backtick",      "Type a backtick",
         "Reload",        "Reload Supervertaler Sidekick"
     )
     return labels
@@ -53,6 +63,14 @@ HK_Does() {
         "GoogleSearch",  "searches google.co.uk for the selection",
         "DesktopSearch", "searches the desktop with dtSearch",
         "ConfirmSegment","presses Ctrl+Enter",
+        "Euro",          "types " Chr(0x20AC),
+        "EnDash",        "types " Chr(0x2013),
+        "EmDash",        "types " Chr(0x2014),
+        "OpenQuote",     "types " Chr(0x2018),
+        "CloseQuote",    "types " Chr(0x2019),
+        "QuoteSelection","surrounds the selection with " Chr(0x2018) " and " Chr(0x2019),
+        "Bullet",        "types " Chr(0x2022) " and a space",
+        "Backtick",      "types ``",
         "Reload",        "restarts Supervertaler Sidekick"
     )
     return does
@@ -72,6 +90,18 @@ HK_Actions() {
         ; Confirm-segment is Ctrl+Enter in memoQ, CafeTran and most others;
         ; the point is to reach it from a key that suits your hands.
         "ConfirmSegment",() => Send("^{Enter}"),
+        ; The characters a keyboard has no key for. SendText, so nothing in
+        ; them is read as a key name.
+        "Euro",          () => SendText(Chr(0x20AC)),
+        "EnDash",        () => SendText(Chr(0x2013)),
+        "EmDash",        () => SendText(Chr(0x2014)),
+        "OpenQuote",     () => SendText(Chr(0x2018)),
+        "CloseQuote",    () => SendText(Chr(0x2019)),
+        "QuoteSelection",() => RunAction("SingleCurlyQuotes"),
+        "Bullet",        () => SendText(Chr(0x2022) " "),
+        ; The backtick opens the main window by default, so it needs another
+        ; key for the times it is wanted as a character.
+        "Backtick",      () => SendText("``"),
         "Reload",        () => Reload()
     )
     return actions
@@ -97,6 +127,16 @@ HK_Defaults() {
         ; those two applications NumpadEnter is left alone entirely.
         "ConfirmSegment","NumpadEnter@ahk_exe memoQ.exe"
                        . "|NumpadEnter@ahk_exe SDLTradosStudio.exe",
+        ; The keys these had when they were written into Sidekick.ahk itself,
+        ; where nobody could change or switch them off.
+        "Euro",          "^+3",
+        "EnDash",        "^+6",
+        "EmDash",        "^+-",
+        "OpenQuote",     "^+9",
+        "CloseQuote",    "^+0",
+        "QuoteSelection","^+'",
+        "Bullet",        "^+o",
+        "Backtick",      "^+``",
         "Reload",        "^r"
     )
     return defaults

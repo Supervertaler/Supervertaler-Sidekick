@@ -20,6 +20,15 @@ guesswork.
 
 ### Changed
 
+- **The character keys can be changed or switched off.** `Ctrl+Shift+3` (€),
+  `Ctrl+Shift+6` and `Ctrl+Shift+-` (en and em dash), `Ctrl+Shift+9` and
+  `Ctrl+Shift+0` (‘ and ’), `Ctrl+Shift+'` (‘ ’ around the selection),
+  `Ctrl+Shift+O` (a bullet) and ``Ctrl+Shift+` `` (a backtick) were written into
+  the script itself. They are built-in shortcuts now, on the same keys, in
+  **Settings → Keyboard shortcuts**, where each can have another key, be limited
+  to some programs, or be turned off. `Ctrl+Shift+7`, which opened one person's
+  Talon folder, is gone.
+
 - **Searches open in your default browser.** Every web search in the starter menu,
   Google this! (`Ctrl+/`) and Microsoft Terminology Search used to open Microsoft
   Edge whatever browser you use.

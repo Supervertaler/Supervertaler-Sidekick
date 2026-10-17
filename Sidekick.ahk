@@ -265,8 +265,6 @@ ClipboardPasteSentenceCase(*)    {      ; Converts the selected text to sentence
     Sleep(500)
 }
 
-^+'::SingleCurlyQuotes()
-
 SingleCurlyQuotes(*) {                    ; Put single, curly quotes around the selection: ‘like this’
     SK_WrapSelection(Chr(0x2018), Chr(0x2019))
 }
@@ -566,28 +564,10 @@ Hotkeys /  Keyboard shortcuts
 ; ^+e::MultiSearchEnNl()          ; Ctrl-Shift-e hotkey
 
 
-; Menu, clipboard, reload, Google and desktop search are bound from
-; settings.ini [Hotkeys] — see lib\hotkeys.ahk.
-
-; Hotkeys that used to sit inside the menu block
-; A_AppData resolves per user, so this works on any machine - and
-; keeps a Windows profile name out of a shareable script.
-^+7::Run(A_AppData "\talon")   ; Talon config folder
-
-
-;;^+d::dtSearch()                 ; Ctrl-Shift-d opens and searches in dtSearch
-
-;^!+1::Send("{Raw}■")   									; black square: ■
-;^!+4::Send("{U+00B0}")   								; degree symbol: C°
-;^!+5::Send("{U+2212}")									; Minus sign ( − ) / _vocola.vcl
-
-^+`::Send("{U+0060}") 									; back tick( ` )
-^+3::Send("€") 			; Euro sign ( € )
-^+-::Send("{U+2014}") 									; Em dash symbol ( — )
-^+6::Send("{U+2013}") 									; En dash symbol ( – )
-^+o::Send("{U+2022}{Space}") 							; Bullet point ( • )
-
-^+9::Send("{U+2018}") 									; Single, curly, opening quotation mark (“)
-^+0::Send("{U+2019}") 									; Right single closing quotation mark (”)
+; Menu, clipboard, reload, Google and desktop search, and the character
+; keys (euro sign, dashes, curly quotes, bullet, backtick), are built-in
+; shortcuts bound from settings.ini [Hotkeys], each with a default that can be
+; changed or switched off in Settings > Keyboard shortcuts - see
+; lib\hotkeys.ahk. Anything personal belongs in data\shortcuts.json.
 
 
