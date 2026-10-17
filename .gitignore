@@ -28,3 +28,6 @@ Thumbs.db
 # public.
 /AutoCorrect.ahk
 /AHK.ahk
+
+# Built installers (tools/build-installer.sh)
+/dist/

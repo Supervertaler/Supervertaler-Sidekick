@@ -323,7 +323,9 @@ MicrosoftTerminologySearch(*) {
     }
     CopiedText := A_Clipboard
     SearchURL := "https://msit.powerbi.com/view?r=eyJrIjoiODJmYjU4Y2YtM2M0ZC00YzYxLWE1YTktNzFjYmYxNTAxNjQ0IiwidCI6IjcyZjk4OGJmLTg2ZjEtNDFhZi05MWFiLTJkN2NkMDExZGI0NyIsImMiOjV9"
-    Run('msedge.exe "' SearchURL '"')
+    ; In the default browser, like every other search: not everyone has Edge
+    ; as theirs, and opening it for them is presumptuous.
+    Run(SearchURL)
 }
 
 
@@ -377,7 +379,7 @@ GoogleSearch(*) {
 
     SearchURL := "https://www.google.co.uk/search?hl=en&safe=off&q="
                . SK_UriEncode(text)
-    Run('msedge.exe "' SearchURL '"')
+    Run(SearchURL)                      ; the default browser, as above
 }
 
 

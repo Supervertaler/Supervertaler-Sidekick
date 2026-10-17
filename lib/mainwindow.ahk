@@ -41,6 +41,9 @@ global MW_QTFromLbl := ""
 global MW_QTArrow   := ""
 global MW_QTSwapBtn := ""
 global MW_QTGoBtn   := ""
+global MW_QTZoomLbl := ""      ; "Text size" − + above the source box
+global MW_QTZoomOut := ""
+global MW_QTZoomIn  := ""
 
 ; The third tab is one box and nothing else — see lib\scratchpad.ahk for
 ; what happens to what you type in it.
@@ -249,6 +252,7 @@ MW_Build() {
     global MW_Tabs, MW_QTSource, MW_QTSrc, MW_QTTgt
     global MW_QTRowCtl, MW_QTLabel, MW_QTFromLbl, MW_QTArrow
     global MW_QTSwapBtn, MW_QTGoBtn, MW_Scratch
+    global MW_QTZoomLbl, MW_QTZoomOut, MW_QTZoomIn
     global MW_OpenTabDDL, MW_OpenTabLbl, MW_OPENTAB_NAMES
     global QT_OnUpdate
 
@@ -293,6 +297,20 @@ MW_Build() {
     MW_QTSource  := MW_Gui.Add("Edit", "x" tx " y" (ty + 18) " w" tw " r3 Multi")
     MW_Gui.SetFont("s9")
     MW_QTSource.OnEvent("Change", (*) => MW_QTLayout())
+
+    ; Text size, for the mouse: the same steps as Ctrl+= and Ctrl+-. On the
+    ; Source: line, which is empty past its label at any window width — the
+    ; language row below runs out of room first. MW_QTPlaceZoom keeps them
+    ; against the source box's right edge.
+    MW_Gui.SetFont("s8")
+    MW_QTZoomLbl := MW_Gui.Add("Text", "x0 y0 w56 Right cGray", "Text size")
+    MW_Gui.SetFont("s10")
+    MW_QTZoomOut := MW_Gui.Add("Button", "x0 y0 w24 h20 -Tabstop", "−")
+    MW_QTZoomIn  := MW_Gui.Add("Button", "x0 y0 w24 h20 -Tabstop", "+")
+    MW_Gui.SetFont("s9")
+    MW_QTZoomOut.OnEvent("Click", (*) => MW_QTZoomClick(-1))
+    MW_QTZoomIn.OnEvent("Click", (*) => MW_QTZoomClick(1))
+    MW_QTPlaceZoom()
 
     ly := ty + 76       ; the language row
     MW_QTFromLbl := MW_Gui.Add("Text", "x" tx " y" (ly + 4) " w36", "From:")
@@ -825,6 +843,7 @@ MW_QTLayoutBody() {
     MW_QTLabel.Move(left, y, 60)
     y += 18
     MW_QTSource.Move(left, y, srcW, srcH)
+    MW_QTPlaceZoom()
     y += srcH + 10
 
     ; ---- language row ---------------------------------------------------
@@ -1410,6 +1429,39 @@ MW_TextZoomTo(points) {
                . "Ctrl+- smaller  ·  Ctrl+0 back to " MW_TEXT_DEF "pt")
 }
 
+; The − and + buttons. A click hands a button the keyboard focus, and a
+; button is the one place in this tab where the digits and Enter mean
+; nothing useful, so the focus goes back to the selected translation — or to
+; the source box when there are none yet, which is where it would be.
+MW_QTZoomClick(delta) {
+    global MW_QTRows, MW_QTRowCtl, MW_QTSel, MW_QTSource
+    MW_TextZoom(delta)
+    if (MW_QTSel >= 1 && MW_QTSel <= MW_QTRows.Length
+            && MW_QTSel <= MW_QTRowCtl.Length) {
+        try {
+            MW_QTRowCtl[MW_QTSel]["box"].Focus()
+            return
+        }
+    }
+    try MW_QTSource.Focus()
+}
+
+; Right-aligned on the Source: line, read off the source box rather than
+; computed a second time, so the layout pass and a window resize cannot
+; disagree about where it is.
+MW_QTPlaceZoom() {
+    global MW_QTSource, MW_QTZoomLbl, MW_QTZoomOut, MW_QTZoomIn
+    if (MW_QTZoomIn = "")
+        return
+    try {
+        MW_QTSource.GetPos(&sx, &sy, &sw)
+        right := sx + sw
+        MW_QTZoomIn.Move(right - 24, sy - 22)
+        MW_QTZoomOut.Move(right - 52, sy - 22)
+        MW_QTZoomLbl.Move(right - 52 - 6 - 56, sy - 18)
+    }
+}
+
 MW_OnTab(n, action) {
     if (MW_ActiveTab() = n)
         action()
@@ -1883,6 +1935,7 @@ MW_OnSize(thisGui, minMax, width, height) {
         ; Tab 2: source box and language row are fixed height, the results
         ; list takes whatever is left.
         MW_QTSource.Move(, , inner - 8)
+        MW_QTPlaceZoom()
 
         ; Tab 3: the note takes the whole tab — the same rectangle as the
         ; clipboard list, taken from it rather than written down twice. It

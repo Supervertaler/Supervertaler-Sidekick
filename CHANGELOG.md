@@ -8,6 +8,40 @@ This file starts on 2026-09-16. Anything before the entries below is in the git
 history rather than here, because reconstructing it after the fact would be
 guesswork.
 
+## 2026-10-17
+
+### Added
+
+- **Text size buttons on the QuickTrans tab.** A small **−** and **+** at the right
+  end of the Source line, for the mouse: the same steps as `Ctrl+-` and `Ctrl+=`,
+  remembered the same way, and they grow the note on the Scratchpad tab too. After
+  a click the focus goes back to the selected translation, so `1`–`9` and Enter
+  still insert.
+
+### Changed
+
+- **Searches open in your default browser.** Every web search in the starter menu,
+  Google this! (`Ctrl+/`) and Microsoft Terminology Search used to open Microsoft
+  Edge whatever browser you use.
+
+- **A tidier starter menu for new installs.** The menu a first run copies into
+  `data\` loses what only made sense on the machine it came from: the voice-command
+  notes, the AutoCorrect entry, a regex placeholder, the Dutch–English translation
+  prompts (QuickTrans does translation), Localize, the GitHub-issue summary, the
+  dtSearch and LogiTerm searches, the Oxford Premium search, "Edit Sidekick.ahk",
+  and the hints naming text expansions a new install does not have. The HTML link
+  snippet is now a plain template. A menu you already have is never changed.
+
+- **Model lists come in two tiers, as in Supervertaler for Trados.** Each
+  engine's dropdown in **AI providers & keys** now opens on the few models worth
+  recommending, the same short list the Trados plugin shows, and picking one
+  shows its verdict and price on the status line. **Show all models** adds
+  everything the provider lists for your key; **Models** beside an engine does
+  the same for that one engine. A provider's own list runs to dozens of dated
+  snapshots and previews, which was all the dropdown used to show. Show all
+  models replaces the **Fetch all models** button, which it does the work of.
+  The short list is a copy of Trados's, so it changes when that one does.
+
 ## 2026-09-19
 
 ### Added

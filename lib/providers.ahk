@@ -3,9 +3,11 @@
 ; lib/providers.ahk — API keys, endpoints and models, without editing an INI.
 ;
 ; One row per engine: on/off, its key, and its model. The model box is a combo
-; you can type into or pick from, filled by asking the provider what that key
-; can actually use — availability differs by account, so a list baked into the
-; app would be wrong for somebody.
+; you can type into or pick from, in two tiers, the way Supervertaler for
+; Trados does it: the short list below — the few models worth recommending —
+; and, with "Show all models" ticked, everything the provider says that key
+; can use. A provider's own list runs to dozens of dated snapshots, previews
+; and embedding models, which is no help to someone choosing a translator.
 ;
 ; Keys are masked by default. Not because the file is secret — settings.ini
 ; sits on the user's own disk and never enters the repository — but because a
@@ -22,10 +24,97 @@ global PR_Custom   := ""
 global PR_Region   := ""
 global PR_AutoAI   := ""
 global PR_RawMT    := ""
+global PR_AllModels := ""      ; the "Show all models" checkbox
+global PR_Fetched  := Map()    ; engine id -> what its provider listed, this visit
+
+; ---------------------------------------------------------------------------
+; The short list.
+;
+; Supervertaler for Trados's own, copied from core/src/LlmModels.cs in the
+; Supervertaler-Plugin-Core repository on 2026-10-17, so that the two products
+; recommend the same models. It is a copy, not a link — Sidekick runs without
+; either plugin installed — so when that list changes, change this one.
+; Same order as there; the verdict shows on the status line when a model is
+; picked.
+; ---------------------------------------------------------------------------
+PR_ShortList(id) {
+    static lists := Map(
+        "anthropic", [
+            ["claude-sonnet-5-5", "Claude Sonnet 5.5 – recommended: near-Opus "
+                . "quality at Sonnet cost ($2/$10 per 1M tokens)"],
+            ["claude-opus-5-5", "Claude Opus 5.5 – premium ($4/$20): the top "
+                . "choice for hard legal and technical work"],
+            ["claude-fable-5-1", "Claude Fable 5.1 – Anthropic's most capable, "
+                . "at double Opus pricing, for when cost is secondary"]
+        ],
+        "openai", [
+            ["gpt-6-astra", "GPT-6 Astra – premium ($10/$50 per 1M tokens): "
+                . "OpenAI's most capable"],
+            ["gpt-6.1-sol", "GPT-6.1 Sol – recommended: close to Astra's "
+                . "quality at a fifth of its price ($2/$10)"],
+            ["gpt-6-luna", "GPT-6 Luna – budget ($0.10/$0.50): for "
+                . "high-volume work where cost matters most"]
+        ],
+        "gemini", [
+            ["gemini-3.8-flash", "Gemini 3.8 Flash – recommended: strong "
+                . "quality at $0.75/$3.75 per 1M tokens"],
+            ["gemini-3.5-flash-lite", "Gemini 3.5 Flash-Lite – budget "
+                . "($0.30/$2.50): for high-volume work"],
+            ["gemini-3.1-pro-preview", "Gemini 3.1 Pro – Google's most "
+                . "capable ($2/$12); still a preview"]
+        ],
+        "mistral", [
+            ["mistral-large-latest", "Mistral Large – flagship, best quality"],
+            ["mistral-small-latest", "Mistral Small – fast and cheap"]
+        ],
+        "deepseek", [
+            ["deepseek-v4-pro", "DeepSeek V4 Pro – flagship: strong "
+                . "reasoning and multilingual quality"],
+            ["deepseek-v4-flash", "DeepSeek V4 Flash – fast and cheap"]
+        ],
+        "openrouter", [
+            ["anthropic/claude-sonnet-5.5", "Claude Sonnet 5.5 – recommended"],
+            ["anthropic/claude-opus-5.5", "Claude Opus 5.5 – premium"],
+            ["anthropic/claude-fable-5.1", "Claude Fable 5.1 – most capable, "
+                . "at double Opus pricing"],
+            ["openai/gpt-6-astra", "GPT-6 Astra – OpenAI's most capable"],
+            ["openai/gpt-6.1-sol", "GPT-6.1 Sol – close to Astra at a fifth "
+                . "of the price"],
+            ["openai/gpt-6-luna", "GPT-6 Luna – OpenAI's cheapest"],
+            ["google/gemini-3.8-flash", "Gemini 3.8 Flash – strong quality at "
+                . "low cost"],
+            ["google/gemini-3.1-pro-preview", "Gemini 3.1 Pro – Google's most "
+                . "capable; still a preview"],
+            ["google/gemma-4-31b-it", "Gemma 4 31B – open weights, strong "
+                . "multilingual quality"],
+            ["google/gemma-4-26b-a4b-it", "Gemma 4 26B MoE – near-31B quality "
+                . "for less"],
+            ["mistralai/mistral-small-2603", "Mistral Small 4 – very fast and "
+                . "cheap"],
+            ["qwen/qwen3.8-27b:free", "Qwen 3.8 27B (free) – rate-limited, "
+                . "and free providers may keep what you send: not for "
+                . "confidential work"],
+            ["deepseek/deepseek-v4-pro", "DeepSeek V4 Pro – flagship"],
+            ["deepseek/deepseek-v4-flash", "DeepSeek V4 Flash – fast and "
+                . "cheap"]
+        ],
+        ; Suggestions only: a local server can run what has been pulled onto
+        ; it and nothing else, so its own list is the one that counts there.
+        "ollama", [
+            ["translategemma:12b", "TranslateGemma 12B – best translation "
+                . "quality for its size (12 GB RAM)"],
+            ["translategemma:4b", "TranslateGemma 4B – lightweight (6 GB RAM)"],
+            ["qwen3:14b", "Qwen 3 14B – general-purpose, 100+ languages "
+                . "(10 GB RAM)"],
+            ["aya-expanse:8b", "Aya Expanse 8B – strong Dutch (8 GB RAM)"]
+        ]
+    )
+    return lists.Has(id) ? lists[id] : []
+}
 
 OpenProviderSettings(*) {
     global PR_Gui, PR_Rows, PR_Status, PR_ShowKeys
-    global PR_Ollama, PR_Custom, PR_Region, PR_AutoAI, PR_RawMT
+    global PR_Ollama, PR_Custom, PR_Region, PR_AutoAI, PR_RawMT, PR_AllModels
 
     if (PR_Gui != "") {
         PR_Gui.Show()
@@ -114,16 +203,19 @@ OpenProviderSettings(*) {
     PR_ShowKeys := PR_Gui.Add("CheckBox", "xm y" y " w110", "Show keys")
     PR_ShowKeys.OnEvent("Click", (*) => PR_ToggleKeys())
 
-    PR_Gui.Add("Button", "x+6 yp-4 w130 h26", "Fetch all models")
-        .OnEvent("Click", (*) => PR_FetchAll())
-    PR_Gui.Add("Button", "x+90 yp w90 h26 Default", "Save")
+    ; Where "Fetch all models" was: ticking it does exactly that, and then
+    ; shows the result, which is all the button was ever for.
+    PR_AllModels := PR_Gui.Add("CheckBox", "x+6 yp w140", "Show all models")
+    PR_AllModels.OnEvent("Click", (*) => PR_OnShowAll())
+    PR_Gui.Add("Button", "x+80 yp-4 w90 h26 Default", "Save")
         .OnEvent("Click", (*) => PR_Save())
     PR_Gui.Add("Button", "x+6 yp w80 h26", "Close")
         .OnEvent("Click", (*) => PR_Close())
 
     PR_Status := PR_Gui.Add("Text", "xm y+14 w660",
-                            "Click Models beside an engine to list what your "
-                            "key can actually use.")
+                            "Each model list starts with the few worth "
+                            "recommending. Models, or Show all models, adds "
+                            "everything your key can use.")
     PR_Gui.Show("w700 h" (y + 90))
 }
 
@@ -166,7 +258,9 @@ PR_AddRow(e, y, cw) {
     if (isAI) {
         row["model"] := PR_Gui.Add("ComboBox", "x+6 y" (y - 1) " w"
                                              . cw["model"])
+        row["model"].Add(PR_Ids(PR_ShortList(id)))
         row["model"].Text := Trim(QT_Setting(id "_model", ""))
+        row["model"].OnEvent("Change", PR_MakeDescribe(id))
         row["default"] := providers[id]["default_model"]
         PR_Gui.Add("Button", "x+4 y" (y - 1) " w" cw["btn"] " h23", "Models")
             .OnEvent("Click", PR_MakeFetch(id))
@@ -214,8 +308,12 @@ PR_MakeFetch(id) {
     return (*) => PR_Fetch(id)
 }
 
+; The Models button: ask, and show the answer — so it ticks Show all models
+; when there is anything beyond the short list, as the Trados plugin's Fetch
+; list does. Ticking it in code raises no Click, so this asks one provider,
+; not all of them.
 PR_Fetch(id) {
-    global PR_Rows, PR_Status
+    global PR_Rows, PR_Status, PR_AllModels
 
     row := PR_Rows[id]
     if !row.Has("model")
@@ -226,31 +324,132 @@ PR_Fetch(id) {
     PR_ApplyEndpoints()
 
     p := AI_Providers()[id]
-    key := Trim(PR_KeyValue(row))
-    if (key = "" && p["needs_key"]) {
-        PR_Status.Value := "Enter a key for " p["label"] " first."
-        return
-    }
-    if (p["base"] = "") {
-        PR_Status.Value := p["label"] " has no endpoint set."
+    why := PR_CannotAsk(id)
+    if (why != "") {
+        PR_Status.Value := why
         return
     }
 
     PR_Status.Value := "Asking " p["label"] " what it has…"
-    r := PR_FetchWithKey(id, key)
-
+    r := PR_Ask(id)
     if !r["ok"] {
         PR_Status.Value := p["label"] ": " r["error"]
         return
     }
 
+    extra := PR_ExtraCount(id)
+    if (extra > 0 && !PR_AllModels.Value) {
+        PR_AllModels.Value := 1
+        PR_FillAll()
+    } else
+        PR_FillModels(id)
+
+    PR_Status.Value := p["label"] ": " r["models"].Length " models"
+        . (extra > 0 ? ", " extra " beyond the short list – shown with Show "
+                     . "all models ticked."
+                     : ", none beyond the short list.")
+        . " Blank uses the default"
+        . (row["default"] != "" ? " (" row["default"] ")" : "") "."
+}
+
+; Why a row cannot be asked yet, in words; "" when it can.
+PR_CannotAsk(id) {
+    global PR_Rows
+    p := AI_Providers()[id]
+    if (p["needs_key"] && Trim(PR_KeyValue(PR_Rows[id])) = "")
+        return "Enter a key for " p["label"] " first."
+    if (p["base"] = "")
+        return p["label"] " has no endpoint set."
+    return ""
+}
+
+; Ask one provider and remember the answer for as long as the window is open.
+; Not longer: a list kept across visits would be a list that has gone stale,
+; and asking again is one click.
+PR_Ask(id) {
+    global PR_Rows, PR_Fetched
+    r := PR_FetchWithKey(id, Trim(PR_KeyValue(PR_Rows[id])))
+    if r["ok"]
+        PR_Fetched[id] := r["models"]
+    return r
+}
+
+; Fill one row's list: the short list, then — when Show all models is ticked
+; and the provider has been asked — whatever else it listed, without
+; repeating a model the short list already has.
+PR_FillModels(id) {
+    global PR_Rows, PR_Fetched, PR_AllModels
+
+    row := PR_Rows[id]
+    if !row.Has("model")
+        return
+
+    items := PR_Ids(PR_ShortList(id))
+    if (PR_AllModels != "" && PR_AllModels.Value && PR_Fetched.Has(id)) {
+        seen := Map()
+        seen.CaseSense := false
+        for m in items
+            seen[m] := true
+        for m in PR_Fetched[id] {
+            if !seen.Has(m) {
+                seen[m] := true
+                items.Push(m)
+            }
+        }
+    }
+
     keep := row["model"].Text
     row["model"].Delete()
-    row["model"].Add(r["models"])
+    if (items.Length > 0)
+        row["model"].Add(items)
     row["model"].Text := keep          ; do not lose what was typed
-    PR_Status.Value := p["label"] ": " r["models"].Length " models. "
-                     . "Blank uses the default"
-                     . (row["default"] != "" ? " (" row["default"] ")" : "") "."
+}
+
+PR_FillAll() {
+    global PR_Rows
+    for id, row in PR_Rows
+        PR_FillModels(id)
+}
+
+; How many of what a provider listed are not on the short list.
+PR_ExtraCount(id) {
+    global PR_Fetched
+    if !PR_Fetched.Has(id)
+        return 0
+    short := Map()
+    short.CaseSense := false
+    for m in PR_Ids(PR_ShortList(id))
+        short[m] := true
+    n := 0
+    for m in PR_Fetched[id] {
+        if !short.Has(m)
+            n++
+    }
+    return n
+}
+
+PR_Ids(list) {
+    out := []
+    for m in list
+        out.Push(m[1])
+    return out
+}
+
+; The verdict for a short-list model, on the status line as it is picked.
+; Typing fires this too, so a name that is not on the list says nothing.
+PR_MakeDescribe(id) {
+    return (*) => PR_Describe(id)
+}
+
+PR_Describe(id) {
+    global PR_Rows, PR_Status
+    text := Trim(PR_Rows[id]["model"].Text)
+    for m in PR_ShortList(id) {
+        if (m[1] = text) {
+            PR_Status.Value := m[2]
+            return
+        }
+    }
 }
 
 ; QT_FetchModels reads the saved key; this variant is handed one, so the
@@ -282,7 +481,9 @@ PR_FetchWithKey(id, key) {
         raw := AI_ResponseText(req)
         data := Jxon_Load(&raw)
     } catch Error as err {
-        out["error"] := err.Message
+        ; One line, in words: Show all models reports several engines on the
+        ; one status line, and WinHttp's own wording runs to three.
+        out["error"] := QT_ErrorText(err)
         return out
     }
 
@@ -321,20 +522,41 @@ PR_FetchWithKey(id, key) {
     return out
 }
 
-PR_FetchAll() {
-    global PR_Rows, PR_Status
-    done := 0
+; Show all models. Ticking it asks every engine that can be asked and has not
+; been this visit — which is what "Fetch all models" used to do — and then
+; shows the lot; unticking it goes back to the short lists. One question at a
+; time and each waits for its answer, so a provider that does not answer
+; holds the window for up to its 25-second timeout. Engines with no key or no
+; endpoint are left out rather than reported as failures.
+PR_OnShowAll() {
+    global PR_Rows, PR_Status, PR_AllModels, PR_Fetched
+
+    if !PR_AllModels.Value {
+        PR_FillAll()
+        PR_Status.Value := "Showing the short lists: the few models worth "
+                         . "recommending for each engine."
+        return
+    }
+
+    PR_ApplyEndpoints()
+    failed := ""
     for id, row in PR_Rows {
-        if !row.Has("model")
+        if !row.Has("model") || PR_Fetched.Has(id) || PR_CannotAsk(id) != ""
             continue
         p := AI_Providers()[id]
-        if (p["needs_key"] && Trim(PR_KeyValue(row)) = "")
-            continue
-        PR_Fetch(id)
-        done++
+        PR_Status.Value := "Asking " p["label"] " what it has…"
+        r := PR_Ask(id)
+        if !r["ok"]
+            failed .= (failed = "" ? "" : "; ") p["label"] ": " r["error"]
     }
-    if (done = 0)
-        PR_Status.Value := "No keys entered yet."
+    PR_FillAll()
+
+    if (PR_Fetched.Count = 0 && failed = "")
+        PR_Status.Value := "No keys entered yet, so there is nothing more "
+                         . "to list."
+    else
+        PR_Status.Value := "Showing every model each engine listed"
+                         . (failed != "" ? ", except — " failed : ".")
 }
 
 ; ---------------------------------------------------------------------------
@@ -385,9 +607,11 @@ PR_Save() {
 }
 
 PR_Close(*) {
-    global PR_Gui, PR_Rows
+    global PR_Gui, PR_Rows, PR_AllModels, PR_Fetched
     try PR_Gui.Destroy()
     PR_Gui := ""
     PR_Rows := Map()
+    PR_AllModels := ""
+    PR_Fetched := Map()
     return true
 }
