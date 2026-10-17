@@ -120,7 +120,9 @@ HK_Defaults() {
         "Clipboard",     "^!c",
         "LibraryEditor", "",        ; off unless asked for
         "GoogleSearch",  "^/",
-        "DesktopSearch", "^+d",
+        ; Off for a new install: it starts dtSearch, which most people do
+        ; not have, so the key would only ever produce an error.
+        "DesktopSearch", "",
         ; memoQ and Trados both confirm a segment with Ctrl+Enter. This
         ; puts that on a key you can hit with one hand, without giving up
         ; Ctrl+Enter. It is on by default only because it is scoped: outside
@@ -137,7 +139,10 @@ HK_Defaults() {
         "QuoteSelection","^+'",
         "Bullet",        "^+o",
         "Backtick",      "^+``",
-        "Reload",        "^r"
+        ; Off for a new install. Ctrl+R is a browser's reload and Word's
+        ; right-align, and a global claim on it took both away; the menu's
+        ; Reload Sidekick is one click for the few times it is needed.
+        "Reload",        ""
     )
     return defaults
 }

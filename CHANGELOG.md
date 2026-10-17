@@ -8,6 +8,31 @@ This file starts on 2026-09-16. Anything before the entries below is in the git
 history rather than here, because reconstructing it after the fact would be
 guesswork.
 
+## 2026-10-18
+
+### Added
+
+- **An installer, for anyone who has never used AutoHotkey.** Download
+  `Supervertaler-Sidekick-Setup.exe` from the GitHub releases and run it. It needs
+  no administrator rights and brings its own copy of AutoHotkey, so there is
+  nothing to install first. It asks where Sidekick should go and suggests a
+  `sidekick` folder in the Supervertaler data folder, because your menu, clipboard
+  history, notes and settings live in that folder too; it refuses Program Files,
+  where Sidekick could not save anything. It offers to start Sidekick when you sign
+  in. An update closes Sidekick properly first, so a note being typed is saved, and
+  never touches your `data` folder or `settings.ini`; uninstalling leaves both and
+  says where they are. Running `Sidekick.ahk` with your own AutoHotkey works as
+  before.
+
+### Changed
+
+- **Ctrl+R and Ctrl+Shift+D are no longer claimed on a new install.** `Ctrl+R`
+  reloaded Sidekick in every program, which took it away from browsers (reload)
+  and Word (right-align); `Ctrl+Shift+D` started dtSearch, which most people do not
+  have. Both are off by default now. **Settings → Reload Sidekick** is in the menu,
+  and either key can be given back in **Settings → Keyboard shortcuts**. An install
+  that already has them in `settings.ini` keeps them.
+
 ## 2026-10-17
 
 ### Added
