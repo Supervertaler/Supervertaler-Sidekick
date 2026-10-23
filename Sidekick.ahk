@@ -63,17 +63,33 @@ OnMessage(0x001A, SyncTrayIcon)   ; WM_SETTINGCHANGE
 
 /*
 ====================================================
-Dark mode menu
-
-Not sure what this bit does. Doesn't seem to have any effect on my system.
+Dark menus
 ====================================================
 */
 
-Class DarkMode {
-    Static __New(Mode := 1) => ( ; Mode: Dark = 1, Default (Light) = 0
-        DllCall(DllCall("GetProcAddress", "ptr", DllCall("GetModuleHandle", "str", "uxtheme", "ptr"), "ptr", 135, "ptr"), "int", mode),
-        DllCall(DllCall("GetProcAddress", "ptr", DllCall("GetModuleHandle", "str", "uxtheme", "ptr"), "ptr", 136, "ptr"))
-    )
+; Lets the tray menu and Sidekick's pop-up menus turn dark when Windows is set
+; to dark for apps (AppsUseLightTheme - the setting windows follow, not the
+; taskbar one the tray icon follows above). In light mode it changes nothing.
+;
+; uxtheme.dll exports the two calls by number only: 135 is SetPreferredAppMode,
+; where 1 means "allow dark", and 136 is FlushMenuThemes, which makes menus
+; already created pick that up. Windows versions without them return no
+; address, and then this does nothing rather than calling address 0.
+;
+; A static __New runs once when the script starts, even though nothing ever
+; refers to the class (checked on AutoHotkey 2.0.26).
+class DarkMenus {
+    static __New() {
+        uxtheme := DllCall("GetModuleHandle", "Str", "uxtheme", "Ptr")
+        if !uxtheme
+            return
+        setPreferredAppMode := DllCall("GetProcAddress", "Ptr", uxtheme, "Ptr", 135, "Ptr")
+        flushMenuThemes := DllCall("GetProcAddress", "Ptr", uxtheme, "Ptr", 136, "Ptr")
+        if (!setPreferredAppMode || !flushMenuThemes)
+            return
+        DllCall(setPreferredAppMode, "Int", 1)
+        DllCall(flushMenuThemes)
+    }
 }
 
 /*

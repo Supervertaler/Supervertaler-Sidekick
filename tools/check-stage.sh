@@ -18,7 +18,7 @@ STAGE="${1:?usage: check-stage.sh <folder>}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 [[ -d "$STAGE" ]] || { echo "ERROR: no such folder: $STAGE" >&2; exit 1; }
 
-ALLOWED=" Sidekick.ahk lib packs data.example Sidekick.ico Sidekick-on-dark.ico settings.example.ini CHANGELOG.md README.md "
+ALLOWED=" Sidekick.ahk lib packs data.example Sidekick.ico Sidekick-on-dark.ico settings.example.ini CHANGELOG.md README.md LICENSE "
 shopt -s dotglob nullglob
 for path in "$STAGE"/*; do
     name="$(basename "$path")"

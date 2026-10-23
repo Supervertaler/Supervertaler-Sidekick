@@ -1,0 +1,58 @@
+Supervertaler Sidekick – Source Available License
+
+Copyright (c) 2024–2026 Michael Beijer (supervertaler.com)
+
+Permission is hereby granted to any person obtaining a copy of this software
+and associated documentation files (the "Software") to:
+
+  1. Install and use the Software free of charge, for any lawful purpose,
+     including paid translation and other professional work;
+  2. View, study, audit, and reference the source code;
+  3. Modify your own copy of the source code, and use that modified copy
+     yourself;
+  4. Run or build the Software from source in order to inspect or verify it.
+
+The Software needs no licence key and costs nothing to use. These grants
+exist so that anyone can use it freely and satisfy themselves that it is safe
+and does what it claims. What they do not grant is the right to pass it on:
+the Software reaches people only from the copyright holder, so that everyone
+gets the same, current copy.
+
+The following restrictions apply:
+
+  1. You may NOT redistribute the Software, or any installer package of it,
+     whether modified or unmodified, free of charge or commercially. Point
+     people to the official download instead. Installing copies within your
+     own organisation, for its own people, is not redistribution.
+  2. You may NOT offer the Software, or any derivative of it, as a
+     commercial product or service.
+  3. You may NOT sublicense the Software.
+  4. You may NOT remove or alter any copyright, licence, branding, or
+     attribution notice in the Software.
+
+Any breach of the restrictions above automatically and immediately terminates
+the permissions granted by this licence. Use of the Software after termination
+is unlicensed.
+
+The Software is available exclusively from the copyright holder, via
+https://github.com/Supervertaler/Supervertaler-Sidekick and
+https://supervertaler.com/sidekick/.
+
+Third-party components are not covered by this licence and keep their own:
+
+  - lib/jxon.ahk is JXON_ahk2 by TheArkive, under the MIT licence printed at
+    the top of that file.
+  - The installer includes an unmodified copy of AutoHotkey, which is free
+    software under the GNU General Public License, version 2. Its licence and
+    a pointer to its source code are installed beside it.
+
+Contributions submitted to this repository (e.g. via pull requests) are
+licensed under the same terms and the copyright holder retains the right to
+distribute them as part of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

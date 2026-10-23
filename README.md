@@ -174,9 +174,22 @@ settings.ini          API keys — gitignored
 The AI request handling began life in
 [ChatGPT-AutoHotkey-Utility](https://github.com/kdalanon/ChatGPT-AutoHotkey-Utility)
 by kdalanon, and has since been rewritten as the provider-agnostic layer in
-`lib/ai.ahk`.
+`lib/ai.ahk`. None of its code remains.
 
-JSON parsing uses [cJson/Jxon](https://github.com/cocobelgica/AutoHotkey-JSON).
+JSON parsing uses [JXON_ahk2](https://github.com/TheArkive/JXON_ahk2) by
+TheArkive (MIT licence), the AutoHotkey v2 successor of cocobelgica's
+[Jxon](https://github.com/cocobelgica/AutoHotkey-JSON).
+
+---
+
+## Licence
+
+Sidekick is free to use, for personal and professional work, with no licence
+key. Its source code is source-available rather than open source: you may read
+it, audit it and change your own copy, but not pass the program or its
+installer on to others – point them to the download instead. See
+[LICENSE](LICENSE) for the full terms. JXON and the copy of AutoHotkey the
+installer brings keep their own licences.
 
 ---
 

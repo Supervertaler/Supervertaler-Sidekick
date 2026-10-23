@@ -8,6 +8,26 @@ This file starts on 2026-09-16. Anything before the entries below is in the git
 history rather than here, because reconstructing it after the fact would be
 guesswork.
 
+## 2026-10-23
+
+### Added
+
+- **A licence.** Sidekick now has a `LICENSE` file. It stays free to use, for
+  personal and professional work, with no licence key. Its source code is
+  source-available, as for the Supervertaler plugins: you may read it, audit it
+  and change your own copy, but not pass the program or the installer on.
+  Installing it for the people in your own organisation is allowed. JXON and the
+  copy of AutoHotkey the installer brings keep their own licences.
+
+### Changed
+
+- **The code that lets Sidekick's menus follow dark mode is rewritten.** The few
+  lines that did it were the last ones carried over from
+  ChatGPT-AutoHotkey-Utility, where Sidekick's AI handling began; nothing of that
+  project's code remains. The new version also checks that Windows has the two
+  system calls before using them. Nothing changes in use: it makes the same two
+  calls as before.
+
 ## 2026-10-18
 
 ### Added
