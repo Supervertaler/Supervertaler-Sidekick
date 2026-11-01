@@ -56,21 +56,27 @@ you make it yours.
 
 ### Setting up AI
 
-Copy `settings.example.ini` to `settings.ini` and add a key:
+Open the menu, go to **Settings → AI providers & keys…**, paste a key beside
+its provider and click **Save**. The line at the top, **AI menu actions use:**,
+picks which provider and model answer the AI prompts on the menu – Claude,
+OpenAI, Gemini, Mistral, DeepSeek or OpenRouter. Its model list is the one
+that provider's row has: the few models worth recommending, plus everything
+your key can use once **Models** or **Show all models** has asked. Leave the
+model blank for the provider's default. The choice takes effect at once, and is
+not saved while that provider has no key Sidekick can use.
+
+Behind the window it is the `[AI]` section of `settings.ini`:
 
 ```ini
 [AI]
-Provider=anthropic     ; or: openai
+Provider=anthropic     ; or openai, gemini, mistral, deepseek, openrouter
 Model=                 ; blank = the provider's default
 Effort=medium          ; low | medium | high | xhigh | max  (Anthropic only)
-
-[Keys]
-anthropic=sk-ant-...
 ```
 
-`settings.ini` is gitignored. Switching vendor is one line — the request and
-response shapes for each live in `lib/ai.ahk`, so adding a third provider means
-one entry in `AI_Providers()`, not a rewrite.
+A menu entry with a `provider` or `model` of its own keeps it. `settings.ini`
+is gitignored. The request and response shapes for each provider live in
+`lib/ai.ahk`, so adding one means one entry in `AI_Providers()`, not a rewrite.
 
 ---
 

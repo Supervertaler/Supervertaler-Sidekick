@@ -140,15 +140,12 @@ AI_Config() {
     cfg := Map()
     ini := SettingsFile()
 
-    cfg["provider"]  := AI_Ini(ini, "AI", "Provider", "anthropic")
+    cfg["provider"]  := AI_ConfiguredProvider()
     cfg["model"]     := AI_Ini(ini, "AI", "Model", "")
     cfg["maxtokens"] := AI_Ini(ini, "AI", "MaxTokens", "16000")
     cfg["effort"]    := AI_Ini(ini, "AI", "Effort", "medium")
 
     providers := AI_Providers()
-    if !providers.Has(cfg["provider"])
-        cfg["provider"] := "anthropic"
-
     if (cfg["model"] = "")
         cfg["model"] := providers[cfg["provider"]]["default_model"]
 
@@ -161,11 +158,25 @@ AI_Config() {
     ; Fall back to the old ChatGptAPI.ini so an existing install keeps working
     ; without the user having to move their key by hand - but not past a key
     ; that can't be read: the old one would only be refused by the provider.
-    if (cfg["key"] = "" && problem = "" && cfg["provider"] = "openai")
-        cfg["key"] := AI_Ini(A_ScriptDir "\ChatGptAPI.ini",
-                             "ChatGptAPI", "API_Key", "")
+    if (cfg["key"] = "" && problem = "")
+        cfg["key"] := AI_LegacyKey(cfg["provider"])
 
     return cfg
+}
+
+; Which provider AI actions use: settings.ini's, unless it names one Sidekick
+; doesn't know, and then Claude. The providers window shows the same choice.
+AI_ConfiguredProvider() {
+    p := AI_Ini(SettingsFile(), "AI", "Provider", "anthropic")
+    return AI_Providers().Has(p) ? p : "anthropic"
+}
+
+; The OpenAI key the old OpenAI-only script kept in ChatGptAPI.ini; "" for
+; every other provider.
+AI_LegacyKey(provider) {
+    if (provider != "openai")
+        return ""
+    return AI_Ini(A_ScriptDir "\ChatGptAPI.ini", "ChatGptAPI", "API_Key", "")
 }
 
 AI_Ini(file, section, key, default) {

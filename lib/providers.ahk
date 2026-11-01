@@ -9,6 +9,10 @@
 ; can use. A provider's own list runs to dozens of dated snapshots, previews
 ; and embedding models, which is no help to someone choosing a translator.
 ;
+; Above the engines, one line that is not about QuickTrans: which provider
+; and model answer the AI actions on the menu ([AI] in settings.ini), picked
+; from the same lists.
+;
 ; Keys are masked by default. Not because the file is secret — settings.ini
 ; sits on the user's own disk and never enters the repository — but because a
 ; window full of API keys is awkward to screenshot, and screenshots of this
@@ -26,6 +30,9 @@ global PR_AutoAI   := ""
 global PR_RawMT    := ""
 global PR_AllModels := ""      ; the "Show all models" checkbox
 global PR_Fetched  := Map()    ; engine id -> what its provider listed, this visit
+global PR_AIUse    := ""       ; "AI menu actions use:" - the provider list
+global PR_AIModel  := ""       ; ... and the model box beside it
+global PR_AIIds    := []       ; the provider id behind each entry of PR_AIUse
 ; Notes about a key that can't be read: dark amber, which reads as a warning
 ; on the light window without shouting.
 global PR_NoteColour := "cA0400A"
@@ -136,13 +143,17 @@ PR_Build() {
     PR_Gui.OnEvent("Close", PR_Close)
     PR_Gui.OnEvent("Escape", PR_Close)
 
-    PR_Gui.Add("Text", "xm ym w660",
+    ; One row, and what it has to say goes on the status line: the window
+    ; is already close to the height of a laptop screen.
+    PR_AddAIChoice()
+
+    PR_Gui.Add("Text", "xm y36 w660",
                "Engines QuickTrans asks for a translation. Leave a model "
                "blank to use the provider's default.")
 
     ; Column widths, shared by the heading row and every engine row.
     cw := Map("name", 104, "key", 268, "model", 178, "btn", 62)
-    y  := 40
+    y  := 60
 
     ; The start-up sync had to set a damaged locked key file aside (M6).
     if (SK_SyncNotice != "") {
@@ -235,7 +246,140 @@ PR_Build() {
                             "Each model list starts with the few worth "
                             "recommending. Models, or Show all models, adds "
                             "everything your key can use.")
+    ; ... unless something is wrong with what AI menu actions use.
+    said := AI_Ini(SettingsFile(), "AI", "Provider", "anthropic")
+    id := PR_AIChosen()
+    first := (said != "" && said != id)
+        ? "settings.ini names a provider Sidekick doesn't know (" said
+        . "), so AI menu actions use " AI_Providers()[id]["label"] "." : ""
+    why := PR_AIKeyProblem(id)
+    if (why != "")
+        first .= (first = "" ? "" : " ") "AI menu actions can't use "
+               . AI_Providers()[id]["label"] " yet. " why
+    if (first != "")
+        PR_Status.Value := first
     return y + 90
+}
+
+; ---------------------------------------------------------------------------
+; "AI menu actions use:" - which provider and model answer the AI prompts on
+; the menu. Shows what is in effect: settings.ini's provider, or Claude when
+; it names one Sidekick doesn't know, and its model as written there, blank
+; or typed by hand. A menu entry that names its own still keeps it.
+PR_AddAIChoice() {
+    global PR_Gui, PR_AIUse, PR_AIModel, PR_AIIds
+
+    current := AI_ConfiguredProvider()
+    PR_AIIds := PR_AIChoices(current)
+    labels := []
+    for id in PR_AIIds
+        labels.Push(AI_Providers()[id]["label"])
+
+    PR_Gui.SetFont("s9 Bold")
+    PR_Gui.Add("Text", "xm ym+4", "AI menu actions use:")
+    PR_Gui.SetFont("s9 Norm")
+    PR_AIUse := PR_Gui.Add("DropDownList", "x+8 ym w160", labels)
+    for i, id in PR_AIIds {
+        if (id = current)
+            PR_AIUse.Choose(i)
+    }
+    PR_AIUse.OnEvent("Change", (*) => PR_OnAIProvider())
+
+    PR_AIModel := PR_Gui.Add("ComboBox", "x+6 ym w210")
+    PR_FillAIModels()
+    PR_AIModel.Text := Trim(AI_Ini(SettingsFile(), "AI", "Model", ""))
+    PR_AIModel.OnEvent("Change", (*) => PR_Describe(PR_AIChosen(), PR_AIModel))
+    PR_ShowDefault()
+}
+
+; The providers on offer: the ones that answer with a key. Ollama and the
+; custom endpoint usually have none, and AI actions send nothing without one
+; (AI_Start), so they are left out - unless settings.ini already names one,
+; which is then shown as it is.
+PR_AIChoices(current) {
+    ids := ["anthropic", "openai", "gemini", "mistral", "deepseek", "openrouter"]
+    for id in ids {
+        if (id = current)
+            return ids
+    }
+    ids.Push(current)
+    return ids
+}
+
+PR_AIChosen() {
+    global PR_AIUse, PR_AIIds
+    return PR_AIIds[PR_AIUse.Value]
+}
+
+; Another provider's model would mean nothing to this one, so the box starts
+; blank - that provider's default - with that provider's list.
+PR_OnAIProvider() {
+    global PR_AIModel, PR_Status
+    PR_AIModel.Text := ""
+    PR_FillAIModels()
+    PR_ShowDefault()
+    id := PR_AIChosen()
+    label := AI_Providers()[id]["label"]
+    why := PR_AIKeyProblem(id)
+    PR_Status.Value := (why != "")
+        ? "AI menu actions can't use " label " yet. " why
+        : "Click Save to use " label " for AI menu actions."
+}
+
+; Blank means the provider's default, and the empty box says which that is.
+; CB_SETCUEBANNER is 0x1703.
+PR_ShowDefault() {
+    global PR_AIModel
+    d := AI_Providers()[PR_AIChosen()]["default_model"]
+    try SendMessage(0x1703, 0, StrPtr(d = "" ? "" : "default: " d), PR_AIModel)
+}
+
+; Why AI menu actions could not use a provider, going by the window as it
+; stands - a key pasted but not yet saved counts; "" when they could. Asks
+; what AI_Config would: a key, or else the note that the stored one can't be
+; read here (M1), or else ChatGptAPI.ini's old OpenAI key.
+PR_AIKeyProblem(id) {
+    global PR_Rows
+    row := PR_Rows.Has(id) ? PR_Rows[id] : Map()
+    if (Trim(PR_KeyValue(row)) != "")
+        return ""
+    if (GetKey(row, "note", "") != "")
+        return row["note"]
+    if (AI_LegacyKey(id) != "")
+        return ""
+    return "There is no " SK_Name(id) " key – paste one into the "
+         . (row.Has("on") ? row["on"].Text : AI_Providers()[id]["label"])
+         . " row below."
+}
+
+; [AI] Provider and Model, written when the choice has changed. A switch to a
+; provider with no key AI menu actions can use is not saved: every action
+; would only stop and say so, so the provider that works now is kept. (A new
+; model for the same provider changes nothing about its key.) Returns what to
+; add to the status line.
+PR_SaveAIChoice(ini) {
+    global PR_AIModel
+    id := PR_AIChosen()
+    model := Trim(PR_AIModel.Text)
+    if (id == AI_Ini(ini, "AI", "Provider", "anthropic")
+        && model == AI_Ini(ini, "AI", "Model", ""))
+        return ""
+
+    p := AI_Providers()[id]
+    now := AI_ConfiguredProvider()
+    why := PR_AIKeyProblem(id)
+    if (why != "" && id != now)
+        return " AI menu actions still use " AI_Providers()[now]["label"]
+             . ", not " p["label"] ". " why
+
+    ; Model first: choosing a provider blanks the model, so if the second
+    ; write fails, the old provider is left with its own default rather than
+    ; another provider's model.
+    IniWrite(model, ini, "AI", "Model")
+    IniWrite(id, ini, "AI", "Provider")
+    return " AI menu actions now use " p["label"] ", "
+         . (model != "" ? model : "its default model, " p["default_model"]) "."
+         . (why != "" ? " " why : "")
 }
 
 ; One engine's row. Returns the Map of its controls, which also records what
@@ -383,8 +527,10 @@ PR_Fetch(id) {
     if (extra > 0 && !PR_AllModels.Value) {
         PR_AllModels.Value := 1
         PR_FillAll()
-    } else
+    } else {
         PR_FillModels(id)
+        PR_FillAIModels()
+    }
 
     PR_Status.Value := p["label"] ": " r["models"].Length " models"
         . (extra > 0 ? ", " extra " beyond the short list – shown with Show "
@@ -420,15 +566,42 @@ PR_Ask(id) {
     return r
 }
 
-; Fill one row's list: the short list, then — when Show all models is ticked
-; and the provider has been asked — whatever else it listed, without
-; repeating a model the short list already has.
+; Fill one row's list.
 PR_FillModels(id) {
-    global PR_Rows, PR_Fetched, PR_AllModels
-
+    global PR_Rows
     row := PR_Rows[id]
-    if !row.Has("model")
-        return
+    if row.Has("model")
+        PR_SetItems(row["model"], PR_ModelItems(id))
+}
+
+; The model box of AI menu actions gets the same list as its provider's row.
+PR_FillAIModels() {
+    global PR_AIModel
+    if (PR_AIModel != "")
+        PR_SetItems(PR_AIModel, PR_ModelItems(PR_AIChosen()))
+}
+
+; Replace a model box's list without losing what was typed in it. Not
+; redrawn meanwhile, which halves the time: Windows takes about a quarter of
+; a millisecond per entry even so, so OpenRouter's few hundred cost a tenth
+; of a second a box.
+PR_SetItems(box, items) {
+    keep := box.Text
+    box.Opt("-Redraw")
+    try {
+        box.Delete()
+        if (items.Length > 0)
+            box.Add(items)
+        box.Text := keep
+    } finally
+        box.Opt("+Redraw")
+}
+
+; A provider's model list: the short list, then — when Show all models is
+; ticked and the provider has been asked — whatever else it listed, without
+; repeating a model the short list already has.
+PR_ModelItems(id) {
+    global PR_Fetched, PR_AllModels
 
     items := PR_Ids(PR_ShortList(id))
     if (PR_AllModels != "" && PR_AllModels.Value && PR_Fetched.Has(id)) {
@@ -443,18 +616,14 @@ PR_FillModels(id) {
             }
         }
     }
-
-    keep := row["model"].Text
-    row["model"].Delete()
-    if (items.Length > 0)
-        row["model"].Add(items)
-    row["model"].Text := keep          ; do not lose what was typed
+    return items
 }
 
 PR_FillAll() {
     global PR_Rows
     for id, row in PR_Rows
         PR_FillModels(id)
+    PR_FillAIModels()
 }
 
 ; How many of what a provider listed are not on the short list.
@@ -487,9 +656,10 @@ PR_MakeDescribe(id) {
     return (*) => PR_Describe(id)
 }
 
-PR_Describe(id) {
+; box is the row's own model box unless another is given (AI menu actions').
+PR_Describe(id, box := "") {
     global PR_Rows, PR_Status
-    text := Trim(PR_Rows[id]["model"].Text)
+    text := Trim((box != "" ? box : PR_Rows[id]["model"]).Text)
     for m in PR_ShortList(id) {
         if (m[1] = text) {
             PR_Status.Value := m[2]
@@ -654,6 +824,8 @@ PR_Save() {
                 IniWrite(Trim(row["model"].Text), ini, "QuickTrans",
                          id "_model")
         }
+        ; After the keys, so that a key pasted for it this visit counts.
+        aiSaid := PR_SaveAIChoice(ini)
     } catch Error as err {
         PR_Status.Value := "Could not save: " err.Message
         return
@@ -665,14 +837,19 @@ PR_Save() {
                      . (notShared = "" ? ""
                         : " Not saved in the key file the Supervertaler plugins "
                         . "share, so they don't have it yet: " notShared ".")
+                     . aiSaid
 }
 
 PR_Close(*) {
     global PR_Gui, PR_Rows, PR_AllModels, PR_Fetched
+    global PR_AIUse, PR_AIModel, PR_AIIds
     try PR_Gui.Destroy()
     PR_Gui := ""
     PR_Rows := Map()
     PR_AllModels := ""
     PR_Fetched := Map()
+    PR_AIUse := ""
+    PR_AIModel := ""
+    PR_AIIds := []
     return true
 }

@@ -12,6 +12,14 @@ guesswork.
 
 ### Added
 
+- **Choose which AI answers your AI menu prompts.** **Settings → AI providers &
+  keys…** now starts with **AI menu actions use:** – a provider (Claude,
+  OpenAI, Gemini, Mistral, DeepSeek or OpenRouter) and a model, from the same
+  lists the engine rows below it have. Until now this meant editing
+  `settings.ini` by hand. The choice takes effect at once, without reloading.
+  It is not saved while that provider has no key Sidekick can use, and the
+  window says why. A prompt that names its own provider or model keeps it.
+
 - **API keys are also locked to this computer.** Every key Sidekick saves in
   **Settings → AI providers & keys…**, and every key it finds in the shared key
   file when it starts, is now also kept in your Windows profile –
