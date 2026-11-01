@@ -93,7 +93,7 @@ Write-Host "INFO  scratch folder: $root"
 # A small script that includes Sidekick's lib files and the tests, and nothing
 # that registers a hotkey. Warnings go to stdout, never a dialog; an error
 # ends the phase as a failure.
-$libs = 'jxon', 'sharedkeys', 'data', 'menu_builder', 'ai', 'quicktrans', 'providers'
+$libs = 'jxon', 'sharedkeys', 'data', 'menu_builder', 'ai', 'markdown', 'quicktrans', 'providers'
 $wrapper = Join-Path $run 'test.ahk'
 $lines = @('#Requires AutoHotkey v2.0', '#NoTrayIcon', '#SingleInstance Off', '#Warn All, StdOut', 'OnError(T_OnError)')
 $lines += $libs | ForEach-Object { '#Include "' + (Join-Path $repo "lib\$_.ahk") + '"' }

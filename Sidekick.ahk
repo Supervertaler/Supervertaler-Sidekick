@@ -17,6 +17,7 @@ Information:
 #Include "lib\data.ahk"
 #Include "lib\menu_builder.ahk"
 #Include "lib\ai.ahk"
+#Include "lib\markdown.ahk"
 #Include "lib\clipboard.ahk"
 #Include "lib\palette.ahk"
 #Include "lib\mainwindow.ahk"

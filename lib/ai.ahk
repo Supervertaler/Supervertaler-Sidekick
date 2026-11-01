@@ -20,7 +20,8 @@ global AI_Busy        := false
 global AI_LastPrompt  := ""      ; for Retry
 global AI_LastOptions := ""
 global AI_Window      := ""
-global AI_Output      := ""
+global AI_Output      := ""      ; the answer box, a rich edit control
+global AI_Answer      := Map("raw", "", "text", "", "rtf", "")   ; what it shows
 global AI_Status      := ""
 global AI_BtnRetry    := ""
 global AI_BtnCopy     := ""
@@ -231,7 +232,7 @@ AI_Ask(promptText, opts := "") {
 
     AI_ShowWindow()
     AI_SetStatus("Thinking…")
-    AI_Output.Value := ""
+    AI_ShowAnswer("")
     AI_EnableButtons(false)
     AI_Start(full, opts)
 }
@@ -241,7 +242,7 @@ AI_Retry(*) {
     if (AI_LastPrompt = "")
         return
     AI_SetStatus("Retrying…")
-    AI_Output.Value := ""
+    AI_ShowAnswer("")
     AI_EnableButtons(false)
     AI_Start(AI_LastPrompt, AI_LastOptions)
 }
@@ -355,13 +356,13 @@ AI_Finish() {
     provider := AI_ActiveProvider()
     text := AI_ExtractText(provider, raw)
 
-    if (text = "") {
+    if (Trim(text, " `t`r`n") = "") {
         AI_Fail("The reply contained no text.`n`n" raw)
         return
     }
 
     AI_SetStatus("Done.")
-    AI_Output.Value := text
+    AI_ShowAnswer(text, true)
     AI_EnableButtons(true)
     try AI_Window.Flash()
 }
@@ -484,10 +485,12 @@ AI_Cleanup() {
     AI_Busy := false
 }
 
+; An error is shown as it is - the provider's reply may have a * or a # in it
+; that means nothing.
 AI_Fail(message) {
     AI_ShowWindow()
     AI_SetStatus("Failed.")
-    AI_Output.Value := message
+    AI_ShowAnswer(message)
     AI_EnableButtons(true)
 }
 
@@ -495,22 +498,30 @@ AI_Fail(message) {
 ; Response window.
 ; ---------------------------------------------------------------------------
 AI_ShowWindow() {
-    global AI_Window, AI_Output, AI_Status
-    global AI_BtnRetry, AI_BtnCopy, AI_BtnInsert
+    global AI_Window
 
     if (AI_Window != "") {
         AI_Window.Show()
         return
     }
 
+    AI_BuildWindow()
+    AI_Window.Show("w730 h480")
+}
+
+AI_BuildWindow() {
+    global AI_Window, AI_Output, AI_Status
+    global AI_BtnRetry, AI_BtnCopy, AI_BtnInsert
+
     AI_Window := Gui("+Resize +MinSize520x300", "Supervertaler Sidekick AI")
     AI_Window.SetFont("s11", "Calibri")
     AI_Window.OnEvent("Close", AI_HideWindow)
     AI_Window.OnEvent("Escape", AI_HideWindow)
     AI_Window.OnEvent("Size", AI_OnSize)
+    AI_Window.OnEvent("ContextMenu", AI_AnswerMenu)
 
     AI_Status := AI_Window.Add("Text", "xm ym w700", "")
-    AI_Output := AI_Window.Add("Edit", "xm y+6 w700 h380 Multi ReadOnly Wrap")
+    AI_Output := AI_AddAnswerBox(AI_Window, "xm y+6 w700 h380")
 
     AI_BtnCopy := AI_Window.Add("Button", "xm y+8 w110", "Copy")
     AI_BtnCopy.OnEvent("Click", AI_Copy)
@@ -522,8 +533,86 @@ AI_ShowWindow() {
     AI_BtnRetry.OnEvent("Click", AI_Retry)
 
     AI_Window.Add("Button", "x+8 w110", "Close").OnEvent("Click", AI_HideWindow)
+}
 
-    AI_Window.Show("w730 h480")
+; The answer box: a rich edit control (Msftedit.dll, part of Windows) -
+; read-only, wrapping, scrolling. It shows the RTF lib\markdown.ahk makes,
+; and Ctrl+C copies what is selected as RTF and as text, the way Word does.
+AI_AddAnswerBox(gui, options) {
+    static loaded := DllCall("LoadLibrary", "Str", "Msftedit.dll", "Ptr")
+    ; ES_MULTILINE ES_AUTOVSCROLL ES_READONLY WS_VSCROLL WS_TABSTOP. No edge:
+    ; this control draws only the old sunken kind, and the white is enough.
+    box := gui.Add("Custom", "ClassRICHEDIT50W " options " +0x210844")
+    SendMessage(0xD3, 3, 0x00080008, box)      ; EM_SETMARGINS: 8 pixels left and right
+    return box
+}
+
+; Show text in the answer box: Markdown formatted, or - a message, an
+; error - as it is. AI_Answer keeps what Copy and Insert hand on.
+AI_ShowAnswer(text, markdown := false) {
+    global AI_Answer, AI_Output
+    AI_Answer := markdown ? MD_Render(text, AI_TableRoom()) : MD_RenderPlain(text)
+    AI_Answer["raw"] := text
+    SendMessage(0xB, 0, 0, AI_Output)                  ; WM_SETREDRAW off: one repaint, however long
+    ; RTF the box can't read in full would show part of the answer, and
+    ; Copy would hand on the same; the text as it is shows all of it. (The
+    ; box also turns down RTF with no characters in it - an empty answer -
+    ; and has cleared itself, which is all there is to do.)
+    if !AI_PutRtf(AI_Output, AI_Answer["rtf"]) && Trim(AI_Answer["text"], " `t`n") != "" {
+        AI_Answer["rtf"] := MD_RenderPlain(AI_Answer["text"])["rtf"]
+        AI_PutRtf(AI_Output, AI_Answer["rtf"])
+    }
+    SendMessage(0xB, 1, 0, AI_Output)
+    DllCall("InvalidateRect", "Ptr", AI_Output.Hwnd, "Ptr", 0, "Int", 1)
+}
+
+; Replace what a rich edit control shows with RTF. False if it could not
+; read all of it, or there was no text in it.
+AI_PutRtf(box, rtf) {
+    data := Buffer(StrPut(rtf, "CP0"))                 ; all ASCII: MD_Esc saw to that
+    StrPut(rtf, data, "CP0")
+    settings := Buffer(8, 0)                           ; SETTEXTEX: replace everything, CP_ACP
+    return SendMessage(0x461, settings.Ptr, data.Ptr, box) = 1    ; EM_SETTEXTEX
+}
+
+; How wide a table in the answer may be, in twips: the box's width less its
+; margins and a scroll bar, which appears once the answer is long.
+AI_TableRoom() {
+    global AI_Output
+    rc := Buffer(16, 0)
+    DllCall("GetClientRect", "Ptr", AI_Output.Hwnd, "Ptr", rc)
+    px := NumGet(rc, 8, "Int") - 16 - SysGet(2) - 4    ; SM_CXVSCROLL
+    return px > 100 ? Round(px * 1440 / A_ScreenDPI) : 0
+}
+
+; Right-click in the answer box, which has no menu of its own.
+AI_AnswerMenu(thisGui, ctrl, item, isRightClick, x, y) {
+    global AI_Output, AI_Answer
+    if (ctrl != AI_Output)
+        return
+    m := Menu()
+    m.Add("Copy", (*) => SendMessage(0x301, 0, 0, AI_Output))           ; WM_COPY: the selection, as the box copies it
+    if !AI_HasSelection()
+        m.Disable("Copy")
+    m.Add("Select all", (*) => SendMessage(0xB1, 0, -1, AI_Output))     ; EM_SETSEL
+    m.Add()
+    m.Add("Copy as Markdown", AI_CopyMarkdown)
+    if (AI_Answer["raw"] = "")
+        m.Disable("Copy as Markdown")
+    m.Show(x, y)
+}
+
+AI_HasSelection() {
+    global AI_Output
+    range := Buffer(8, 0)
+    SendMessage(0x434, 0, range.Ptr, AI_Output)        ; EM_EXGETSEL
+    return NumGet(range, 0, "Int") != NumGet(range, 4, "Int")
+}
+
+; The answer exactly as the AI wrote it, marks and all.
+AI_CopyMarkdown(*) {
+    global AI_Answer
+    A_Clipboard := AI_Answer["raw"]
 }
 
 AI_SetStatus(text) {
@@ -541,11 +630,29 @@ AI_EnableButtons(on) {
     }
 }
 
+; The whole answer, as plain text and as RTF: Word pastes it formatted,
+; everything else gets the text without the Markdown marks.
 AI_Copy(*) {
-    global AI_Output, AI_BtnCopy
-    A_Clipboard := AI_Output.Value
+    global AI_Answer, AI_BtnCopy
+    A_Clipboard := AI_ClipData(AI_Answer["text"], AI_Answer["rtf"])
     AI_BtnCopy.Text := "Copied"
     SetTimer(() => AI_ResetCopyLabel(), -1500)
+}
+
+; Text and RTF in the layout a ClipboardAll holds - a 4-byte format, a 4-byte
+; size, the data; again for the next format; then a 4-byte 0 - so that
+; AutoHotkey puts both on the clipboard at once.
+AI_ClipData(text, rtf) {
+    static CF_RTF := DllCall("RegisterClipboardFormat", "Str", "Rich Text Format", "UInt")
+    text := StrReplace(text, "`n", "`r`n")
+    textSize := StrPut(text, "UTF-16")
+    rtfSize := StrPut(rtf, "CP0")
+    data := Buffer(8 + textSize + 8 + rtfSize + 4, 0)
+    NumPut("UInt", 13, "UInt", textSize, data)                     ; CF_UNICODETEXT
+    StrPut(text, data.Ptr + 8, "UTF-16")
+    NumPut("UInt", CF_RTF, "UInt", rtfSize, data, 8 + textSize)
+    StrPut(rtf, data.Ptr + 16 + textSize, "CP0")
+    return ClipboardAll(data)
 }
 
 AI_ResetCopyLabel() {
@@ -553,10 +660,10 @@ AI_ResetCopyLabel() {
     try AI_BtnCopy.Text := "Copy"
 }
 
-; Put the answer back where the text came from.
+; Put the answer back where the text came from - as plain text, typed.
 AI_Insert(*) {
-    global AI_Output
-    text := AI_Output.Value
+    global AI_Answer
+    text := AI_Answer["text"]
     AI_HideWindow()
     Sleep(120)                 ; let focus return to the original window
     SendText(text)
@@ -570,6 +677,7 @@ AI_HideWindow(*) {
     return true
 }
 
+; The answer takes what the window gains; the buttons stay under it.
 AI_OnSize(thisGui, minMax, width, height) {
     global AI_Output, AI_Status
     if (minMax = -1)
@@ -581,5 +689,10 @@ AI_OnSize(thisGui, minMax, width, height) {
     try {
         AI_Status.Move(, , w)
         AI_Output.Move(, , w, h)
+        AI_Output.GetPos(, &top)
+        for ctrl in thisGui {
+            if (ctrl.Type = "Button")
+                ctrl.Move(, top + h + 8)
+        }
     }
 }

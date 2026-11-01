@@ -37,7 +37,22 @@ guesswork.
   **Save**. Leaving the box empty and clicking **Save** keeps the stored key, as
   some causes pass by themselves.
 
+### Changed
+
+- **AI answers are shown formatted.** The answer window now shows headings,
+  bold and italic text, bullet and numbered lists, tables, code, and sub- and
+  superscript as the AI meant them, instead of the raw `#`, `**` and `-` marks.
+  **Copy** puts the answer on the clipboard as plain text without those marks,
+  and formatted as well, so Word pastes it with its headings and bold;
+  **Insert & close** types the plain text. Right-click in the answer for
+  **Copy** (what you selected), **Select all** and **Copy as Markdown** (the
+  answer exactly as the AI wrote it). Error messages are shown exactly as they
+  arrive.
+
 ### Fixed
+
+- **Making the AI window bigger no longer puts its buttons over the answer.**
+  They now stay below it.
 
 - **A key saved in Sidekick at the same moment as one saved in a Supervertaler
   plugin no longer loses one of them.** Sidekick now takes the same lock on the

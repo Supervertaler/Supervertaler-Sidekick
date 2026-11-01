@@ -30,7 +30,7 @@ no runtime, no install step.
 | 🎚️ **Opens where you want it** | The plain `` ` `` shortcut opens on whichever tab suits you – Clipboard, QuickTrans, Scratchpad, or whichever one you were last on. The **Opens on:** box sits on the tab strip beside the tabs, not in a settings dialog. `Ctrl+Alt+T` and `Ctrl+Alt+N` still go straight to their own tab whatever it says. |
 | 🔎 **Text size** | `Ctrl+=` and `Ctrl+-` inside the window, or the **−** and **+** buttons above the QuickTrans source box; `Ctrl+0` back to normal. It grows the text you actually read and write – the note, the QuickTrans source box, the translations – and leaves the clipboard list, the menu tree and the labels the size they are. Remembered between sessions, so the laptop screen and the big monitor each get what suits them. |
 | 🔍 **Web searches** | Select a term, pick a source. IATE, Juremy, JurLex, Van Dale, Linguee, ProZ, Reverso, BabelNet, Wikipedia, Wiktionary, Google Patents and more. Every source follows the language pair you set, so one IATE entry serves every direction. MultiSearch fires a whole batch at once, each in its own tab of a fresh browser window. A **language pack** is everything for one pair in one click – Dutch ⇄ English ships – and only the pack for the pair you are in is shown. |
-| 🤖 **AI actions** | Run any prompt over the selection: translate, proofread, rephrase, summarise, expand, localise. Provider-agnostic — Claude by default, OpenAI if you prefer — and non-blocking, so the rest of Sidekick keeps working while a request is in flight. |
+| 🤖 **AI actions** | Run any prompt over the selection: translate, proofread, rephrase, summarise, expand, localise. Provider-agnostic — Claude by default, OpenAI if you prefer — and non-blocking, so the rest of Sidekick keeps working while a request is in flight. The answer is shown formatted – headings, bold, lists, tables – and **Copy** and **Insert & close** hand on plain text without the Markdown marks (Copy adds the formatting, for Word); right-click the answer to copy it as Markdown. |
 | 📋 **Snippet library** | Boilerplate, standard replies, special characters, regex patterns, dictionary citations — inserted at the cursor. |
 | 🔤 **Text conversions** | Upper / lower / title / sentence case, curly quotes, brackets, HTML bold, soft-hyphen removal, straight-to-curly quote conversion. |
 | 🔖 **Bookmarks** | Online and local. Forums, docs, reference sites, folders you keep reopening. |
@@ -153,7 +153,8 @@ lib/
   quicktrans.ahk      multi-engine translation of the selection
   palette.ahk         the search-everything window
   menu_builder.ahk    builds the menu from data
-  ai.ahk              provider-agnostic AI requests
+  ai.ahk              provider-agnostic AI requests, and the answer window
+  markdown.ahk        an AI answer's Markdown as RTF and plain text
   clipboard.ahk       clipboard history
   editor.ahk          the Library Editor
   data.ahk            reads and writes the JSON

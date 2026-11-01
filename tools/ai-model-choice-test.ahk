@@ -439,7 +439,7 @@ T_FakeProviders() {
 
 ; One AI action, start to finish: what the AI window would show.
 T_Send(action) {
-    global AI_Busy, AI_Output
+    global AI_Busy, AI_Answer
     T_FakeProviders()
     for id, p in AI_Providers() {
         for k in ["base", "url", "models_url"] {
@@ -457,14 +457,16 @@ T_Send(action) {
         AI_Abort()
         return "(no answer within 20 s)"
     }
-    return AI_Output.Value
+    return AI_Answer["raw"]
 }
 
-; The AI window's parts, as stand-ins that show nothing.
+; The AI window's parts, as stand-ins that show nothing - but for the answer
+; box, which is a real one, in a window that is never shown.
 T_QuietAIWindow() {
     global AI_Window, AI_Output, AI_Status, AI_BtnRetry, AI_BtnCopy, AI_BtnInsert
+    static hidden := Gui()
     AI_Window := {Show: (*) => 0, Hide: (*) => 0, Flash: (*) => 0}
-    AI_Output := {Value: ""}
+    AI_Output := AI_AddAnswerBox(hidden, "w700 h380")
     AI_Status := {Value: ""}
     AI_BtnRetry := {Enabled: 0}, AI_BtnCopy := {Enabled: 0}, AI_BtnInsert := {Enabled: 0}
 }
