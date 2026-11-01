@@ -8,6 +8,37 @@ This file starts on 2026-09-16. Anything before the entries below is in the git
 history rather than here, because reconstructing it after the fact would be
 guesswork.
 
+## Unreleased
+
+### Added
+
+- **API keys are also locked to this computer.** Every key Sidekick saves in
+  **Settings → AI providers & keys…**, and every key it finds in the shared key
+  file when it starts, is now also kept in your Windows profile –
+  `C:\Users\<you>\AppData\Roaming\Supervertaler\api-keys.locked.json` – locked
+  by Windows so that it opens only for your Windows account. Supervertaler for
+  Trados and Supervertaler for memoQ read and write the same file. The shared
+  `api-keys.json` in the data folder is still written as before, so nothing
+  changes in use; a later version will stop keeping keys in the data folder.
+- **"Can't be read on this computer".** A key that Windows will not unlock for
+  you – saved under another Windows sign-in, or before an administrator reset
+  your Windows password – is never sent to a provider blank, and an older copy
+  is not used in its place. The providers window says so under that key's box;
+  an AI action, or that engine's row in QuickTrans, says "Can't use your … key –
+  it can't be read on this computer…". Paste the key in again and click
+  **Save**. Leaving the box empty and clicking **Save** keeps the stored key, as
+  some causes pass by themselves.
+
+### Fixed
+
+- **A key saved in Sidekick at the same moment as one saved in a Supervertaler
+  plugin no longer loses one of them.** Sidekick now takes the same lock on the
+  shared key file as the plugins, and replaces the file in one step, so a save
+  cut short can no longer leave it empty. A shared key file Sidekick cannot read
+  – a slip made while editing it by hand, say – is no longer overwritten with
+  only the key being saved; the providers window says which keys the plugins
+  don't have yet.
+
 ## 2026-10-23
 
 ### Added

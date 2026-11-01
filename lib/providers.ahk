@@ -26,6 +26,9 @@ global PR_AutoAI   := ""
 global PR_RawMT    := ""
 global PR_AllModels := ""      ; the "Show all models" checkbox
 global PR_Fetched  := Map()    ; engine id -> what its provider listed, this visit
+; Notes about a key that can't be read: dark amber, which reads as a warning
+; on the light window without shouting.
+global PR_NoteColour := "cA0400A"
 
 ; ---------------------------------------------------------------------------
 ; The short list.
@@ -113,13 +116,20 @@ PR_ShortList(id) {
 }
 
 OpenProviderSettings(*) {
-    global PR_Gui, PR_Rows, PR_Status, PR_ShowKeys
-    global PR_Ollama, PR_Custom, PR_Region, PR_AutoAI, PR_RawMT, PR_AllModels
+    global PR_Gui
 
     if (PR_Gui != "") {
         PR_Gui.Show()
         return
     }
+    h := PR_Build()             ; first: it is what creates PR_Gui
+    PR_Gui.Show("w700 h" h)
+}
+
+; Builds the window without showing it, and returns the height it needs.
+PR_Build() {
+    global PR_Gui, PR_Rows, PR_Status, PR_ShowKeys, SK_SyncNotice
+    global PR_Ollama, PR_Custom, PR_Region, PR_AutoAI, PR_RawMT, PR_AllModels
 
     PR_Gui := Gui("+Resize +MinSize700x520", "Supervertaler Sidekick — AI providers")
     PR_Gui.SetFont("s9", "Segoe UI")
@@ -133,6 +143,13 @@ OpenProviderSettings(*) {
     ; Column widths, shared by the heading row and every engine row.
     cw := Map("name", 104, "key", 268, "model", 178, "btn", 62)
     y  := 40
+
+    ; The start-up sync had to set a damaged locked key file aside (M6).
+    if (SK_SyncNotice != "") {
+        note := PR_Gui.Add("Text", "xm y" (y - 6) " w660 " PR_NoteColour, SK_SyncNotice)
+        note.GetPos(, , , &h)
+        y += h + 4
+    }
 
     PR_Gui.SetFont("s9 Bold")
     PR_Gui.Add("Text", "xm y" y " w" cw["name"], "Engine")
@@ -155,6 +172,7 @@ OpenProviderSettings(*) {
         }
         PR_Rows[e["id"]] := PR_AddRow(e, y, cw)
         y += 29
+        y := PR_AddNote(PR_Rows[e["id"]], y, cw)
     }
 
     ; ---- endpoints and other odds and ends -------------------------------
@@ -212,11 +230,12 @@ OpenProviderSettings(*) {
     PR_Gui.Add("Button", "x+6 yp w80 h26", "Close")
         .OnEvent("Click", (*) => PR_Close())
 
-    PR_Status := PR_Gui.Add("Text", "xm y+14 w660",
+    ; Three lines: room for a sentence that names the locked key file.
+    PR_Status := PR_Gui.Add("Text", "xm y+14 w660 r3",
                             "Each model list starts with the few worth "
                             "recommending. Models, or Show all models, adds "
                             "everything your key can use.")
-    PR_Gui.Show("w700 h" (y + 90))
+    return y + 90
 }
 
 ; One engine's row. Returns the Map of its controls, which also records what
@@ -245,13 +264,21 @@ PR_AddRow(e, y, cw) {
         PR_Gui.Add("Text", "x+6 y" (y + 4) " w" cw["key"] " cGray",
                    "free, no key needed")
     } else {
-        key := SK_Key(id)   ; shared key file first, settings.ini after
+        ; The shared key file, then the locked one, then settings.ini.
+        found := SK_Find(id)
+        key := (found["status"] = "present") ? found["key"] : ""
+        ; A key stored but not unlockable here gets M1 under its box
+        ; (PR_AddNote), and its empty box is not a removal (PR_Save).
+        row["note"] := SK_Note(found, id)
         ; Two fields, one masked and one not; the checkbox swaps them.
         row["masked"] := PR_Gui.Add("Edit", "x+6 y" y " w" cw["key"]
                                           . " h22 Password", key)
         row["plain"]  := PR_Gui.Add("Edit", "xp yp w" cw["key"] " h22", key)
         row["plain"].Visible := false
-        if !needsKey
+        if (row["note"] != "") {
+            PR_SetCue(row["masked"], "can't be read – paste it again")
+            PR_SetCue(row["plain"], "can't be read – paste it again")
+        } else if !needsKey
             PR_SetCue(row["masked"], "optional")
     }
 
@@ -267,6 +294,21 @@ PR_AddRow(e, y, cw) {
     }
 
     return row
+}
+
+; A row's note (M1), under its key box and as wide as the key and model
+; columns, wrapped to as many lines as it takes. Returns where the next row
+; goes.
+PR_AddNote(row, y, cw) {
+    global PR_Gui
+    if (!row.Has("note") || row["note"] = "")
+        return y
+    note := PR_Gui.Add("Text", "xm+" (cw["name"] + 6) " y" (y - 5) " w"
+                             . (cw["key"] + cw["model"] + cw["btn"] + 10) " "
+                             . PR_NoteColour, row["note"])
+    row["noteCtl"] := note
+    note.GetPos(, , , &h)
+    return y + h + 2
 }
 
 ; Grey placeholder text inside an empty field. EM_SETCUEBANNER is 0x1501.
@@ -356,6 +398,10 @@ PR_Fetch(id) {
 PR_CannotAsk(id) {
     global PR_Rows
     p := AI_Providers()[id]
+    ; An empty box over a key that can't be read here: asking without it
+    ; would send no key in place of one that is there.
+    if (Trim(PR_KeyValue(PR_Rows[id])) = "" && GetKey(PR_Rows[id], "note", "") != "")
+        return PR_Rows[id]["note"]
     if (p["needs_key"] && Trim(PR_KeyValue(PR_Rows[id])) = "")
         return "Enter a key for " p["label"] " first."
     if (p["base"] = "")
@@ -578,6 +624,8 @@ PR_Save() {
     global PR_Rows, PR_Status, PR_AutoAI, PR_RawMT
 
     ini := SettingsFile()
+    shared := (SK_File() != "")
+    notShared := ""
 
     try {
         PR_ApplyEndpoints()
@@ -586,11 +634,21 @@ PR_Save() {
 
         for id, row in PR_Rows {
             IniWrite(row["on"].Value ? "1" : "0", ini, "QuickTrans", id)
-            if row.Has("masked") {
+            ; A box left empty over a key that can't be read here (M1) is not
+            ; a removal: that key was never shown, so every copy of it stays
+            ; until a new one is pasted.
+            if (row.Has("masked")
+                && !(row["note"] != "" && Trim(PR_KeyValue(row)) = "")) {
                 IniWrite(Trim(PR_KeyValue(row)), ini, "Keys", id)
                 ; ... and to the file the Supervertaler plugins read, so a key
                 ; pasted here is a key pasted everywhere.
-                SK_KeySet(id, PR_KeyValue(row))
+                if SK_KeySet(id, PR_KeyValue(row)) {
+                    if (row["note"] != "") {          ; replaced: M1 no longer applies
+                        row["note"] := ""
+                        try row["noteCtl"].Visible := false
+                    }
+                } else if shared
+                    notShared .= (notShared = "" ? "" : ", ") row["on"].Text
             }
             if row.Has("model")
                 IniWrite(Trim(row["model"].Text), ini, "QuickTrans",
@@ -604,6 +662,9 @@ PR_Save() {
     active := QT_ActiveEngines().Length
     PR_Status.Value := "Saved. " active " engine"
                      . (active = 1 ? "" : "s") " will be asked."
+                     . (notShared = "" ? ""
+                        : " Not saved in the key file the Supervertaler plugins "
+                        . "share, so they don't have it yet: " notShared ".")
 }
 
 PR_Close(*) {

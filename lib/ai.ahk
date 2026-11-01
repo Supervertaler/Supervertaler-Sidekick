@@ -152,11 +152,16 @@ AI_Config() {
     if (cfg["model"] = "")
         cfg["model"] := providers[cfg["provider"]]["default_model"]
 
-    cfg["key"] := SK_Key(cfg["provider"])   ; shared key file first, settings.ini after
+    ; The shared key file, then the locked one, then settings.ini. A key that
+    ; is there but can't be unlocked on this computer comes back as "", with
+    ; the sentence to show instead in keyproblem.
+    cfg["key"] := SK_KeyFor(cfg["provider"], &problem)
+    cfg["keyproblem"] := problem
 
     ; Fall back to the old ChatGptAPI.ini so an existing install keeps working
-    ; without the user having to move their key by hand.
-    if (cfg["key"] = "" && cfg["provider"] = "openai")
+    ; without the user having to move their key by hand - but not past a key
+    ; that can't be read: the old one would only be refused by the provider.
+    if (cfg["key"] = "" && problem = "" && cfg["provider"] = "openai")
         cfg["key"] := AI_Ini(A_ScriptDir "\ChatGptAPI.ini",
                              "ChatGptAPI", "API_Key", "")
 
@@ -247,13 +252,17 @@ AI_Start(promptText, opts) {
         model := (provider = cfg["provider"]) ? cfg["model"] : p["default_model"]
 
     key := cfg["key"]
+    problem := cfg["keyproblem"]
     if (provider != cfg["provider"])
-        key := SK_Key(provider)
+        key := SK_KeyFor(provider, &problem)
 
+    ; Never a request without a key - least of all in place of one that is
+    ; stored but can't be read on this computer (problem says so).
     if (key = "") {
-        AI_Fail("No API key for " p["label"] ".`n`n"
-                "Add one to settings.ini:`n`n"
-                "[Keys]`n" provider "=your-key-here")
+        AI_Fail(problem != "" ? problem
+              : "No API key for " p["label"] ".`n`n"
+              . "Add one to settings.ini:`n`n"
+              . "[Keys]`n" provider "=your-key-here")
         return
     }
 

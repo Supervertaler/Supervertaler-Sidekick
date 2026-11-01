@@ -136,6 +136,12 @@ RegisterBuiltInActions()
 ; silently ignored.
 EX_EnsureFresh()
 
+; Lock the keys in the shared key file to this Windows account, in the locked
+; key file every Supervertaler product reads (step 1; see lib\sharedkeys.ahk).
+; A few milliseconds; up to about two seconds if another product is writing
+; one of the two files at that moment.
+SK_SyncLocked()
+
 global SidekickData := LoadMenuData()
 global MenuPopup     := BuildMenuFromData(PK_WithPacks(SidekickData["menu"]))
 RegisterHotstrings(SidekickData["hotstrings"])

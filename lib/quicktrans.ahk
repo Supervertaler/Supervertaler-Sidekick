@@ -118,7 +118,9 @@ QT_ActiveEngines() {
     for e in QT_Engines() {
         if (QT_Setting(e["id"], QT_EngineDefault(e)) = "0")
             continue
-        if (e["key"] != "" && SK_Key(e["key"]) = "")
+        ; No key, no engine. One whose key is stored but can't be read on this
+        ; computer stays in, so its row says so instead of it vanishing.
+        if (e["key"] != "" && SK_Find(e["key"])["status"] = "absent")
             continue
         ; Ollama and the custom endpoint carry no key, so an empty base URL
         ; is what tells us they were never set up. Without this they would be
@@ -137,11 +139,6 @@ QT_ActiveEngines() {
 ; ---------------------------------------------------------------------------
 QT_BuildRequest(engine, text, srcCode, tgtCode) {
     id  := engine["id"]
-    ; Engines with no required key can still take an optional one — a custom
-    ; endpoint behind a gateway, say — so look one up under the engine's own
-    ; name and simply carry on if there is none.
-    key := SK_Key(engine["key"] != "" ? engine["key"] : id)
-
     r := Map("method", "POST", "headers", Map(), "body", "")
 
     if (id = "mymemory") {
@@ -151,6 +148,19 @@ QT_BuildRequest(engine, text, srcCode, tgtCode) {
                   . srcCode "|" tgtCode
         return r
     }
+
+    ; Engines with no required key can still take an optional one — a custom
+    ; endpoint behind a gateway, say — so look one up under the engine's own
+    ; name and simply carry on if there is none.
+    found := SK_Find(engine["key"] != "" ? engine["key"] : id)
+    key := (found["status"] = "present") ? found["key"] : ""
+    ; A key that is stored but can't be read on this computer stops the
+    ; request: sending none in its place would only be refused. For an engine
+    ; that needs no key, only an entry of its own that can't be unlocked
+    ; counts; a damaged or busy key file says nothing about whether it has one.
+    if (found["status"] = "unreadable"
+        && (engine["key"] != "" || found["why"] = "refused"))
+        throw Error(SK_Problem(found, id))
 
     if (id = "google") {
         ; Google Cloud Translation v2. The key rides in the query string
