@@ -8,7 +8,7 @@ This file starts on 2026-09-16. Anything before the entries below is in the git
 history rather than here, because reconstructing it after the fact would be
 guesswork.
 
-## Unreleased
+## 2026-11-03
 
 ### Added
 
