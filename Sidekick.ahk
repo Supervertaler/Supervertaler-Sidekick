@@ -40,27 +40,12 @@ Information:
 ; Every expansion was silently dead for as long as the quotes were there.
 #Include *i data\expansions.gen.ahk
 Persistent
-SyncTrayIcon()
 
-; The tray sits on the taskbar, and the taskbar follows SystemUsesLightTheme
-; - NOT AppsUseLightTheme, which governs application windows and is commonly
-; set the other way round from it. The value is absent on builds that predate
-; the setting, so a missing value is treated as light.
-;
-; Windows broadcasts WM_SETTINGCHANGE when the theme is switched, so the icon
-; can follow it without a timer polling the registry. The static guard means
-; the icon is only actually swapped when it changes - that message fires for
-; every kind of setting change, not only this one.
-SyncTrayIcon(*) {
-    static showing := ""
-    key := "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
-    want := RegRead(key, "SystemUsesLightTheme", 1) ? "Sidekick.ico" : "Sidekick-on-dark.ico"
-    if (want = showing)
-        return
-    showing := want
-    TraySetIcon(A_ScriptDir "\" want)
-}
-OnMessage(0x001A, SyncTrayIcon)   ; WM_SETTINGCHANGE
+; One icon for light and dark taskbars alike. Until 2026-11-03 the brand mark
+; was a black disc, which sank into a dark taskbar, so a second, inverted icon
+; was swapped in whenever SystemUsesLightTheme said the taskbar was dark. The
+; mark is now purple, which shows on both.
+TraySetIcon(A_ScriptDir "\Sidekick.ico")
 
 /*
 ====================================================

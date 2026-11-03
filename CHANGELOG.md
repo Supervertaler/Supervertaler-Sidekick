@@ -8,6 +8,19 @@ This file starts on 2026-09-16. Anything before the entries below is in the git
 history rather than here, because reconstructing it after the fact would be
 guesswork.
 
+## Unreleased
+
+### Changed
+
+- **The Sv mark is purple.** Sidekick's icon – in the tray, on its shortcuts
+  and on the installer – goes from black to purple, the new colour of the
+  Supervertaler brand mark on supervertaler.com and in the docs. Sidekick
+  wears the brand mark rather than a colour of its own, as before.
+- **One tray icon for light and dark taskbars.** A purple disc shows on both,
+  so the second, inverted icon that was swapped in on a dark taskbar is gone
+  (`Sidekick-on-dark.ico`), and so is the code that watched the taskbar's
+  theme to swap it.
+
 ## 2026-11-03
 
 ### Added
