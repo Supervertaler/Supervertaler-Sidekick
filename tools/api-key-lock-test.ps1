@@ -211,6 +211,47 @@ function Lock-WithEntropy([string]$key) {
         $utf8.GetBytes($key), $utf8.GetBytes('PROJ-001'), 'CurrentUser'))
 }
 
+# What a key file holds after a kill: 'missing', 'empty (0 bytes)', 'whole
+# (save #n)' - n is the save it holds, so the two files show where the kill
+# fell - or 'other (<size> bytes, why)'. Read once, as bytes.
+function Get-KeyFileState([string]$path, [bool]$locked) {
+    if (-not (Test-Path -LiteralPath $path)) { return 'missing' }
+    try { $bytes = [IO.File]::ReadAllBytes($path) }
+    catch {
+        $why = Get-Why $_.Exception
+        try { $size = (Get-Item -LiteralPath $path -Force).Length } catch { $size = '?' }
+        return "other ($size bytes, could not be read: $why)"
+    }
+    if ($bytes.Length -eq 0) { return 'empty (0 bytes)' }
+    $other = "other ($($bytes.Length) bytes"
+    if (@($bytes -ne 0).Count -eq 0) { return "$other, all zero bytes)" }
+    try {
+        $bom = $(if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) { 3 } else { 0 })
+        $m = $json.DeserializeObject($utf8.GetString($bytes, $bom, $bytes.Length - $bom))
+        if (-not ($m -is [Collections.Generic.Dictionary[string,object]]) -or -not $m.ContainsKey('claude')) { return "$other, valid JSON but no claude entry)" }
+        $key = $m['claude']
+        if ($locked) { $key = $utf8.GetString([Security.Cryptography.ProtectedData]::Unprotect([Convert]::FromBase64String($key), $null, 'CurrentUser')) }
+    } catch { return "$other, $(Get-Why $_.Exception))" }
+    if ($key -cmatch '^sk-ant-test-Kill-(\d+)-PROJ-001$') { return "whole (save #$($Matches[1]))" }
+    "$other, its claude entry is not one the kill loop saves)"
+}
+
+# An exception as its type, code and message. A parser may quote the text it
+# stopped at, so anything shaped like a key is masked (the scratch folder's
+# name, which looks like one, is shortened first) and the message cut short.
+function Get-Why($e) {
+    while ($e -is [Management.Automation.MethodInvocationException] -and $e.InnerException) { $e = $e.InnerException }
+    $msg = (($e.Message.Replace($root, '<scratch>') -creplace 'sk-[\w-]*', 'sk-...') -replace '\s+', ' ').Trim()
+    if ($msg.Length -gt 200) { $msg = $msg.Substring(0, 200) + '...' }
+    '{0} (0x{1:X8}): {2}' -f $e.GetType().FullName, $e.HResult, $msg
+}
+
+# Temporary files a killed save left behind: the kill fell between writing one
+# and renaming it into place.
+function Get-HalfWritten {
+    @(Get-ChildItem -LiteralPath (Split-Path $plainPath), (Split-Path $lockedPath) -Filter 'api-keys*.tmp').Count
+}
+
 foreach ($exe in $exes) {
     $bits = $(if ($exe -match '32\.exe$') { 32 } else { 64 })
     Write-Host ''
@@ -297,31 +338,63 @@ foreach ($exe in $exes) {
     try { Invoke-Phase $exe 'held-plain' } finally { $held.Dispose() }
     Clear-KeyFiles
 
-    # Killed part-way through saves, ten times: each file is always whole.
-    $whole = 0; $found = 0
+    # Killed part-way through saves, ten times: each file is always whole, or
+    # still missing if it was missing before. If a kill leaves one that is
+    # not, every kill is listed: what each file held, when the kill fell, and
+    # the .tmp files it left. A file that was not whole is read again 200 ms
+    # later - a passing clash (a virus scan holding it, say) reads whole by
+    # then, damage does not - and copied to kill-evidence\ in the scratch
+    # folder, which a failed run keeps.
+    $whole = 0; $found = 0; $kills = @()
     foreach ($n in 1..10) {
+        $had = @{ plain = (Test-Path -LiteralPath $plainPath); locked = (Test-Path -LiteralPath $lockedPath) }
+        $tmpBefore = Get-HalfWritten
         Remove-Item -LiteralPath (Join-Path $root 'kill.ready') -ErrorAction SilentlyContinue
         $p = Start-Phase $exe 'kill-loop'
-        Wait-File (Join-Path $root 'kill.ready') | Out-Null
+        $ready = Wait-File (Join-Path $root 'kill.ready')
+        $clock = [Diagnostics.Stopwatch]::StartNew()
         Start-Sleep -Milliseconds (Get-Random -Minimum 20 -Maximum 300)
-        Stop-Process -Id $p.Id -Force
+        $byItself = $p.HasExited
+        if (-not $byItself) { Stop-Process -Id $p.Id -Force }
+        $ms = $clock.ElapsedMilliseconds
         $p.WaitForExit()
         Wait-Phase $p -timeoutSec 5 -Killed
-        $ok = $true
-        if (Test-Path -LiteralPath $lockedPath) {
-            $found++
-            try {
-                $m = $json.DeserializeObject([IO.File]::ReadAllText($lockedPath, $utf8))
-                $b = [Convert]::FromBase64String($m['claude'])
-                $ok = ([Text.Encoding]::UTF8.GetString([Security.Cryptography.ProtectedData]::Unprotect($b, $null, 'CurrentUser'))) -like 'sk-ant-test-Kill-*'
-            } catch { $ok = $false }
+        $ok = -not $byItself
+        $seen = foreach ($f in @(@('plain', $plainPath, $false), @('locked', $lockedPath, $true))) {
+            $which, $path, $isLocked = $f
+            $state = Get-KeyFileState $path $isLocked
+            if (-not ($state -like 'whole*' -or ($state -eq 'missing' -and -not $had[$which]))) {
+                $ok = $false
+                if ($state -eq 'missing') { $state = 'missing, though it was there before this kill' }
+                Start-Sleep -Milliseconds 200
+                $state += '; read again 200 ms later: ' + (Get-KeyFileState $path $isLocked)
+                if (Test-Path -LiteralPath $path) {
+                    $evidence = Join-Path $root "kill-evidence\$bits-$n"
+                    try {
+                        New-Item -ItemType Directory -Force -Path $evidence | Out-Null
+                        Copy-Item -LiteralPath $path -Destination $evidence
+                    } catch { $state += " (not kept: $(Get-Why $_.Exception))" }
+                }
+            }
+            "${which}: $state"
         }
-        if (Test-Path -LiteralPath $plainPath) {
-            try { $ok = $ok -and ((Get-Content -LiteralPath $plainPath -Raw -Encoding UTF8 | ConvertFrom-Json).claude -like 'sk-ant-test-Kill-*') } catch { $ok = $false }
-        }
+        if (Test-Path -LiteralPath $lockedPath) { $found++ }
         if ($ok) { $whole++ }
+        $when = $(if ($byItself) { "Sidekick had stopped by itself (exit code $($p.ExitCode)), not killed" }
+                  elseif (-not $ready) { "killed $ms ms after giving up waiting for it to be ready" }
+                  else { "killed $ms ms after it was ready" })
+        $before = $(if ($had.plain -and $had.locked) { 'both files' } elseif ($had.plain) { 'the plain file only' }
+                    elseif ($had.locked) { 'the locked file only' } else { 'no files' })
+        $kills += "kill $n $(if ($ok) { 'whole' } else { 'NOT WHOLE' }): $when, with $before before it, " +
+            "$((Get-HalfWritten) - $tmpBefore) .tmp file(s) left; $($seen -join '; ')"
     }
     Check ($whole -eq 10) "[$bits] kill: Sidekick killed part-way through saves 10 times - both files whole every time ($found with a locked file)"
+    if ($whole -ne 10) {
+        $kills | ForEach-Object { Write-Host "      [$bits] $_" }
+        if (Test-Path -LiteralPath (Join-Path $root 'kill-evidence')) {
+            Write-Host "      [$bits] the files that were not whole are kept in $(Join-Path $root 'kill-evidence')"
+        }
+    }
     Clear-KeyFiles
     Get-ChildItem -LiteralPath (Split-Path $lockedPath), (Split-Path $plainPath) -Filter '*.tmp' | Remove-Item -Force
 }
