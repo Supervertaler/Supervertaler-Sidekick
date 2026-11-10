@@ -156,7 +156,7 @@ T_Lists() {
     T_Eq(T_Items(PR_AIModel), short, "lists: unticked, the short list again")
 
     T_Choose("anthropic")
-    T_Eq(T_Items(PR_AIModel), "claude-sonnet-5-5|claude-opus-5-5|claude-fable-5-1", "lists: back to Claude, Claude's list")
+    T_Eq(T_Items(PR_AIModel), "claude-sonnet-5-5|claude-opus-5-5|claude-fable-5-2", "lists: back to Claude, Claude's list")
     PR_AIModel.Text := "claude-opus-5-5"
     PR_Describe(PR_AIChosen(), PR_AIModel)
     T_Check(InStr(PR_Status.Value, "Claude Opus 5.5 " Chr(0x2013) " premium") = 1, "lists: a short-list model's verdict on the status line, as in the rows")

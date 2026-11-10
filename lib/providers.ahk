@@ -54,8 +54,8 @@ PR_ShortList(id) {
                 . "quality at Sonnet cost ($2/$10 per 1M tokens)"],
             ["claude-opus-5-5", "Claude Opus 5.5 – premium ($4/$20): the top "
                 . "choice for hard legal and technical work"],
-            ["claude-fable-5-1", "Claude Fable 5.1 – Anthropic's most capable, "
-                . "at double Opus pricing, for when cost is secondary"]
+            ["claude-fable-5-2", "Claude Fable 5.2 – Anthropic's most capable "
+                . "($8/$40), at double Opus pricing, for when cost is secondary"]
         ],
         "openai", [
             ["gpt-6-astra", "GPT-6 Astra – premium ($10/$50 per 1M tokens): "
@@ -85,7 +85,7 @@ PR_ShortList(id) {
         "openrouter", [
             ["anthropic/claude-sonnet-5.5", "Claude Sonnet 5.5 – recommended"],
             ["anthropic/claude-opus-5.5", "Claude Opus 5.5 – premium"],
-            ["anthropic/claude-fable-5.1", "Claude Fable 5.1 – most capable, "
+            ["anthropic/claude-fable-5.2", "Claude Fable 5.2 – most capable, "
                 . "at double Opus pricing"],
             ["openai/gpt-6-astra", "GPT-6 Astra – OpenAI's most capable"],
             ["openai/gpt-6.1-sol", "GPT-6.1 Sol – close to Astra at a fifth "

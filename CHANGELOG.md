@@ -12,6 +12,11 @@ guesswork.
 
 ### Changed
 
+- **Claude Fable 5.2 replaces Claude Fable 5.1** in the Claude and
+  OpenRouter model lists, as in the Trados and memoQ plugins. Fable 5.2 is
+  Anthropic's most capable model, released on 10 November 2026, at $8/$40 per
+  million tokens instead of 5.1's $10/$50. If you had Fable 5.1 chosen, it
+  stays chosen and keeps working; pick Fable 5.2 from the list to switch.
 - **The Sv mark is purple.** Sidekick's icon – in the tray, on its shortcuts
   and on the installer – goes from black to purple, the new colour of the
   Supervertaler brand mark on supervertaler.com and in the docs. Sidekick
