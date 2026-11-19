@@ -8,7 +8,7 @@ This file starts on 2026-09-16. Anything before the entries below is in the git
 history rather than here, because reconstructing it after the fact would be
 guesswork.
 
-## Unreleased
+## 2026-11-19
 
 ### Changed
 
@@ -25,6 +25,34 @@ guesswork.
   so the second, inverted icon that was swapped in on a dark taskbar is gone
   (`Sidekick-on-dark.ico`), and so is the code that watched the taskbar's
   theme to swap it.
+- **The main window looks like Supervertaler.** It takes its colours from
+  supervertaler.com instead of the plain Windows grey: a faint purple title
+  bar and background (the title bar on Windows 11 only), white boxes and
+  lists, purple **SOURCE** and **FROM** labels and row numbers, and a purple
+  **Translate** button. In QuickTrans the selected translation has a light
+  purple wash, so you can see which one Enter will insert. The menu tree and
+  the clipboard list are drawn as File Explorer draws its lists, with arrows
+  for folders instead of dotted lines and boxed plus signs. The other windows
+  – the AI answer, the settings and the editors – still look as they did.
+- **The purple Translate button cannot be reached with Tab.** Click it, or
+  press `Ctrl+Enter`, which translates from anywhere on the QuickTrans tab.
+- **The main window opens on the screen your mouse pointer is on.** It used to
+  reopen exactly where you last closed it, which with two or more monitors
+  could be a screen you were not looking at. It still remembers its size, and
+  where on a screen you put it; only the screen is now the pointer's.
+
+### Fixed
+
+- **Translations in QuickTrans are no longer cut off.** A translation that
+  needed one line more than its box had been given showed its last line as a
+  sliver, most often at larger text sizes. Each box – and the source box – is
+  now as tall as its text needs at the width it has.
+- **The translations follow the window when you resize it.** They kept the
+  heights they had before, so a narrower window cut them off and a wider one
+  left gaps.
+- **The status line at the bottom of the main window is no longer cut in
+  half**, and the panes now run down to it instead of stopping short and
+  leaving an empty band.
 
 ## 2026-11-03
 
