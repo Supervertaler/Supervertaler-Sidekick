@@ -12,18 +12,22 @@
 ; will this look like on screen - and it has no better home.
 ; ===========================================================================
 
-TH_PAPER     := "FFFFFF"    ; window and box background
+TH_PAPER     := "FFFFFF"    ; boxes, lists and panes
+TH_WASH      := "F7F5FC"    ; the window and its title bar: the site's faint purple
 TH_INK       := "0A0A0A"    ; text
 TH_INK_FAINT := "6B6B6B"    ; hints, the status line, model names
 TH_BRAND     := "6D28D9"    ; the purple
 TH_TINT      := "F3EFFB"    ; a purple wash, for the selected translation
 
-; Purple title bar with white text. Windows 11 only: Windows 10 has no such
-; setting, returns an error, and keeps its usual title bar.
+; The title bar in the same faint purple as the window, so the two read as
+; one surface, with a thin purple line round the whole window. Not the full
+; purple: that was tried on 2026-11-19 and the Sv mark, a purple disc,
+; vanished into it. Windows 11 only: Windows 10 has no such setting, returns
+; an error, and keeps its usual title bar.
 TH_Caption(hwnd) {
-    global TH_BRAND
+    global TH_BRAND, TH_WASH, TH_INK
     ; DWMWA_BORDER_COLOR 34, DWMWA_CAPTION_COLOR 35, DWMWA_TEXT_COLOR 36.
-    for attr, rgb in Map(34, TH_BRAND, 35, TH_BRAND, 36, "FFFFFF") {
+    for attr, rgb in Map(34, TH_BRAND, 35, TH_WASH, 36, TH_INK) {
         value := Buffer(4, 0)
         NumPut("UInt", TH_Bgr(rgb), value)
         try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", attr,

@@ -251,11 +251,11 @@ MW_Build() {
     global MW_QTZoomLbl, MW_QTZoomOut, MW_QTZoomIn
     global MW_OpenTabDDL, MW_OpenTabLbl, MW_OPENTAB_NAMES
     global QT_OnUpdate
-    global TH_PAPER, TH_INK, TH_INK_FAINT, TH_BRAND
+    global TH_PAPER, TH_WASH, TH_INK, TH_INK_FAINT, TH_BRAND
 
     ; The look is supervertaler.com's: see lib\theme.ahk.
     MW_Gui := Gui("+Resize +MinSize720x420", "Supervertaler Sidekick")
-    MW_Gui.BackColor := TH_PAPER
+    MW_Gui.BackColor := TH_WASH
     MW_Gui.SetFont("s9 c" TH_INK, "Segoe UI")
     TH_Caption(MW_Gui.Hwnd)
     MW_Gui.OnEvent("Close", MW_Hide)
