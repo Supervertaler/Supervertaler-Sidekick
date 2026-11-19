@@ -1847,37 +1847,39 @@ MW_ShowRestored() {
     w := QT_Int(AI_Ini(SettingsFile(), "Window", "W", ""), 0)
     h := QT_Int(AI_Ini(SettingsFile(), "Window", "H", ""), 0)
 
-    if (w < 400 || h < 300) {
-        MW_Gui.Show("w1040 h620")
-        return
-    }
-
     ; Gui.Show scales its arguments by the display's DPI while WinGetPos
     ; reports raw pixels, so saving one and restoring through the other makes
     ; the window grow by the scaling factor every time it is reopened - 25%
-    ; a go on a 125% display. Show it first, then place it with WinMove,
-    ; which speaks the same raw pixels the geometry was saved in.
-    MW_Gui.Show("Hide")
-
-    ; A saved position from a monitor that is no longer attached would put the
-    ; window somewhere unreachable.
-    if (x = -99999 || y = -99999 || !MW_OnAnyScreen(x, y, w, h)) {
-        try WinMove(, , w, h, "ahk_id " MW_Gui.Hwnd)
-        MW_Gui.Show()
-        return
+    ; a go on a 125% display. Size it hidden first, then place it in the same
+    ; raw pixels the geometry was saved in.
+    if (w < 400 || h < 300) {
+        ; No size saved yet: the default one, read back in raw pixels.
+        MW_Gui.Show("Hide w1040 h620")
+        rc := Buffer(16, 0)
+        DllCall("GetWindowRect", "Ptr", MW_Gui.Hwnd, "Ptr", rc)
+        w := NumGet(rc, 8, "Int") - NumGet(rc, 0, "Int")
+        h := NumGet(rc, 12, "Int") - NumGet(rc, 4, "Int")
+        x := -99999
+    } else {
+        MW_Gui.Show("Hide")
     }
-    try WinMove(x, y, w, h, "ahk_id " MW_Gui.Hwnd)
+    if (x = -99999 || y = -99999)
+        x := "", y := ""
+
+    ; On the monitor the pointer is on (lib\placement.ahk), which also covers
+    ; a saved position from a monitor that is no longer attached.
+    pt := Buffer(8, 0)
+    DllCall("GetCursorPos", "Ptr", pt)
+    pos := MW_PlaceOnPointerMonitor(x, y, w, h, NumGet(pt, 0, "Int"),
+                                    NumGet(pt, 4, "Int"), MW_Monitors())
+
+    ; SetWindowPos rather than WinMove: the window is hidden at this point,
+    ; and WinMove does not find hidden windows. 0x14 = no z-order change, no
+    ; activation; 0x16 adds "do not move", for when there is nowhere to put it.
+    DllCall("SetWindowPos", "Ptr", MW_Gui.Hwnd, "Ptr", 0
+          , "Int", pos[1] = "" ? 0 : pos[1], "Int", pos[2] = "" ? 0 : pos[2]
+          , "Int", w, "Int", h, "UInt", pos[1] = "" ? 0x16 : 0x14)
     MW_Gui.Show()
-}
-
-MW_OnAnyScreen(x, y, w, h) {
-    ; Just needs the title bar to be somewhere clickable.
-    Loop MonitorGetCount() {
-        MonitorGetWorkArea(A_Index, &l, &tp, &r, &b)
-        if (x + w > l && x < r && y + 30 > tp && y < b)
-            return true
-    }
-    return false
 }
 
 MW_SaveGeometry() {

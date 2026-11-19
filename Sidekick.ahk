@@ -20,6 +20,7 @@ Information:
 #Include "lib\markdown.ahk"
 #Include "lib\clipboard.ahk"
 #Include "lib\palette.ahk"
+#Include "lib\placement.ahk"
 #Include "lib\mainwindow.ahk"
 #Include "lib\quicktrans.ahk"
 #Include "lib\scratchpad.ahk"
