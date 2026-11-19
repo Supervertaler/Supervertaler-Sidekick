@@ -120,15 +120,11 @@ MW_ClampText(n) {
     return n
 }
 
-; How tall one line of that text is, and how wide an average character. The
-; QuickTrans tab gives every translation as many lines as it needs, which
-; means measuring in both. 15px and 6.6px at 9pt, found the hard way.
+; Roughly how tall one line of that text is: 15px at 9pt. Only for the least
+; a translation box may be; what a text actually needs is measured, by
+; TH_EditHeight in lib	heme.ahk.
 MW_TextLineH() {
     return Round(15 * MW_TextSize() / 9)
-}
-
-MW_TextCharW() {
-    return 6.6 * MW_TextSize() / 9
 }
 
 ; The controls that carry it. Everything else in the window keeps the 9pt the
@@ -255,14 +251,18 @@ MW_Build() {
     global MW_QTZoomLbl, MW_QTZoomOut, MW_QTZoomIn
     global MW_OpenTabDDL, MW_OpenTabLbl, MW_OPENTAB_NAMES
     global QT_OnUpdate
+    global TH_PAPER, TH_INK, TH_INK_FAINT, TH_BRAND
 
+    ; The look is supervertaler.com's: see lib\theme.ahk.
     MW_Gui := Gui("+Resize +MinSize720x420", "Supervertaler Sidekick")
-    MW_Gui.SetFont("s9", "Segoe UI")
+    MW_Gui.BackColor := TH_PAPER
+    MW_Gui.SetFont("s9 c" TH_INK, "Segoe UI")
+    TH_Caption(MW_Gui.Hwnd)
     MW_Gui.OnEvent("Close", MW_Hide)
     MW_Gui.OnEvent("Escape", MW_Hide)
     MW_Gui.OnEvent("Size", MW_OnSize)
 
-    MW_Gui.Add("Text", "xm ym+3 w46", "Search:")
+    MW_Gui.Add("Text", "xm ym+3 w46 c" TH_INK_FAINT, "Search:")
     MW_Search := MW_Gui.Add("Edit", "x+4 yp-3 w800")
     MW_Search.OnEvent("Change", (*) => MW_OnSearch())
 
@@ -280,6 +280,7 @@ MW_Build() {
     MW_Clips.OnEvent("DoubleClick", (*) => MW_RunClip())
     MW_Clips.OnEvent("ItemFocus", (*) => MW_MarkFocus("clips"))
     try MW_Clips.OnNotify(-12, MW_CustomDraw)   ; grey out pasted entries
+    TH_ExplorerLook(MW_Clips)
 
     MW_Tabs.UseTab(2)
 
@@ -290,7 +291,10 @@ MW_Build() {
     ty := 88            ; below the tab strip
     tw := 512
 
-    MW_QTLabel   := MW_Gui.Add("Text", "x" tx " y" ty " w60", "Source:")
+    ; Small purple capitals, as the site labels its sections.
+    MW_Gui.SetFont("s8 Bold c" TH_BRAND)
+    MW_QTLabel   := MW_Gui.Add("Text", "x" tx " y" ty " w60", "SOURCE")
+    MW_Gui.SetFont("s9 Norm c" TH_INK)
     ; The source box is text, so it is one of the controls that follows the
     ; text size rather than the window's.
     MW_Gui.SetFont("s" MW_TextSize())
@@ -313,7 +317,9 @@ MW_Build() {
     MW_QTPlaceZoom()
 
     ly := ty + 76       ; the language row
-    MW_QTFromLbl := MW_Gui.Add("Text", "x" tx " y" (ly + 4) " w36", "From:")
+    MW_Gui.SetFont("s8 Bold c" TH_BRAND)
+    MW_QTFromLbl := MW_Gui.Add("Text", "x" tx " y" (ly + 5) " w36", "FROM")
+    MW_Gui.SetFont("s9 Norm c" TH_INK)
     MW_QTSrc     := MW_Gui.Add("DropDownList", "x" (tx + 40) " y" ly " w118",
                                QT_LangNames())
     MW_QTArrow   := MW_Gui.Add("Text", "x" (tx + 164) " y" (ly + 4) " w14", "→")
@@ -322,9 +328,10 @@ MW_Build() {
     MW_QTSwapBtn := MW_Gui.Add("Button", "x" (tx + 306) " y" (ly - 1) " w30 h24",
                                "⇄")
     MW_QTSwapBtn.OnEvent("Click", (*) => MW_QTSwap())
-    MW_QTGoBtn   := MW_Gui.Add("Button", "x" (tx + 342) " y" (ly - 1) " w96 h24",
-                               "Translate")
-    MW_QTGoBtn.OnEvent("Click", (*) => MW_QTTranslate())
+    ; The one purple button. It cannot take the keyboard focus (see
+    ; TH_PrimaryButton); Ctrl+Enter is its key.
+    MW_QTGoBtn   := TH_PrimaryButton(MW_Gui, "x" (tx + 342) " y" (ly - 1) " w96 h24",
+                                     "Translate", (*) => MW_QTTranslate())
 
     ; Results are a stack of full-text fields, not list rows: a translation
     ; cut off at a column edge is no use for judging it against the others.
@@ -369,11 +376,13 @@ MW_Build() {
 
     ; ---- right pane: the menu, outside the tabs ------------------------
     MW_Tabs.UseTab()
-    MW_Tree := MW_Gui.Add("TreeView", "x+10 ym+38 w440 h430")
+    MW_Tree := MW_Gui.Add("TreeView", "x+10 ym+38 w440 h430 -0x2")   ; no dotted lines
+    TH_ExplorerLook(MW_Tree)
     MW_Tree.OnEvent("DoubleClick", (*) => MW_RunTree())
     MW_Tree.OnEvent("ItemSelect", (*) => MW_MarkFocus("menu"))
 
-    MW_Status := MW_Gui.Add("Text", "xm y+440 w1000", "")
+    ; MW_OnSize keeps it on the window's bottom edge.
+    MW_Status := MW_Gui.Add("Text", "xm y+440 w1000 c" TH_INK_FAINT, "")
 
     ; Results land here as each engine replies.
     QT_OnUpdate := MW_RenderTranslations
@@ -385,6 +394,7 @@ MW_Build() {
 ; while tab 2 is the active target, or they would land on the clipboard tab.
 MW_QTEnsureSlots(n) {
     global MW_QTRowCtl, MW_Tabs, MW_Gui, MW_QT_MAXROWS
+    global TH_PAPER, TH_INK, TH_BRAND
 
     if (n > MW_QT_MAXROWS)
         n := MW_QT_MAXROWS
@@ -394,9 +404,9 @@ MW_QTEnsureSlots(n) {
     MW_Tabs.UseTab(2)
     while (MW_QTRowCtl.Length < n) {
         i := MW_QTRowCtl.Length + 1
-        MW_Gui.SetFont("s9 Bold")
+        MW_Gui.SetFont("s9 Bold c" TH_BRAND)
         num := MW_Gui.Add("Text", "x20 y0 w18 Right", i "")
-        MW_Gui.SetFont("s9 Norm")
+        MW_Gui.SetFont("s9 Norm c" TH_INK)
         eng := MW_Gui.Add("Text", "x42 y0 w104", "")
         ; Which model answered, under the engine name. For OpenRouter the
         ; engine name says nothing at all — it is a gateway, and the model
@@ -406,14 +416,18 @@ MW_QTEnsureSlots(n) {
         mdl := MW_Gui.Add("Text", "x42 y0 w104 cGray", "")
         ; The translation is text; the label beside it is furniture.
         MW_Gui.SetFont("s" MW_TextSize() " Norm")
-        box := MW_Gui.Add("Edit", "x156 y0 w300 r2 Multi ReadOnly -VScroll", "")
+        ; White, not the grey Windows gives a read-only box: these are for
+        ; reading. MW_QTMarkRow tints the selected one.
+        box := MW_Gui.Add("Edit", "x156 y0 w300 r2 Multi ReadOnly -VScroll "
+                        . "Background" TH_PAPER, "")
         MW_Gui.SetFont("s9 Norm")
         box.OnEvent("Focus", MW_MakeRowFocus(i))
         num.Visible := false
         eng.Visible := false
         mdl.Visible := false
         box.Visible := false
-        MW_QTRowCtl.Push(Map("num", num, "eng", eng, "mdl", mdl, "box", box))
+        MW_QTRowCtl.Push(Map("num", num, "eng", eng, "mdl", mdl, "box", box,
+                             "bg", TH_PAPER))
     }
     MW_Tabs.UseTab()
 }
@@ -442,8 +456,24 @@ MW_QTMarkRows() {
     Loop MW_QTRowCtl.Length {
         if (A_Index > MW_QTRows.Length)
             break
-        MW_QTRowCtl[A_Index]["num"].Value :=
-            (A_Index = MW_QTSel ? "▸" : "") A_Index
+        MW_QTMarkRow(A_Index)
+    }
+}
+
+; The selected translation: an arrow by its number and a purple wash behind
+; its text. "bg" is what the box was last given, so that a pass which changes
+; nothing repaints nothing.
+MW_QTMarkRow(i) {
+    global MW_QTRowCtl, MW_QTSel, TH_PAPER, TH_TINT
+    r := MW_QTRowCtl[i]
+    r["num"].Value := (i = MW_QTSel ? "▸" : "") i
+    want := (i = MW_QTSel) ? TH_TINT : TH_PAPER
+    if (r["bg"] != want) {
+        r["bg"] := want
+        try {
+            r["box"].Opt("Background" want)
+            r["box"].Redraw()
+        }
     }
 }
 
@@ -825,29 +855,24 @@ MW_QTLayoutBody() {
     lineH  := MW_TextLineH()
 
     ; ---- source box, sized to its contents -----------------------------
+    ; Width first, then the height that width needs (TH_EditHeight measures
+    ; the text as the box will wrap it): never under 3 lines, which is what
+    ; it starts at, and past 10 it scrolls.
     srcW := width
-    srcChars := Round(srcW / MW_TextCharW())
-    if (srcChars < 20)
-        srcChars := 20
-
     text := ""
     try text := MW_QTSource.Value
-    lines := MW_WrappedLines(text, srcChars)
-    if (lines < 3)
-        lines := 3                     ; never smaller than it started
-    if (lines > 10)
-        lines := 10                    ; past this it scrolls
-    srcH := lines * lineH + 8
 
     y := tabY + 30
     MW_QTLabel.Move(left, y, 60)
     y += 18
-    MW_QTSource.Move(left, y, srcW, srcH)
+    MW_QTSource.Move(left, y, srcW)
+    srcH := TH_EditHeight(MW_QTSource, text, MW_TextSize(), 3, 10)
+    MW_QTSource.Move(, , , srcH)
     MW_QTPlaceZoom()
     y += srcH + 10
 
     ; ---- language row ---------------------------------------------------
-    MW_QTFromLbl.Move(left, y + 4, 36)
+    MW_QTFromLbl.Move(left, y + 5, 36)
     MW_QTSrc.Move(left + 40, y, 118)
     MW_QTArrow.Move(left + 164, y + 4, 14)
     MW_QTTgt.Move(left + 182, y, 118)
@@ -861,9 +886,6 @@ MW_QTLayoutBody() {
     boxW    := width - 130
     if (boxW < 120)
         boxW := 120
-    perLine := Round(boxW / MW_TextCharW())
-    if (perLine < 20)
-        perLine := 20
 
     Loop MW_QTRowCtl.Length {
         i := A_Index
@@ -884,10 +906,10 @@ MW_QTLayoutBody() {
             default:        rowText := job["text"]
         }
 
-        rl := MW_WrappedLines(rowText, perLine)
-        if (rl > 6)
-            rl := 6                    ; past this the field scrolls
-        h := rl * lineH + 8
+        ; As tall as its text needs at this width, up to 6 lines; past that
+        ; the field scrolls.
+        r["box"].Move(boxLeft, y, boxW)
+        h := TH_EditHeight(r["box"], rowText, MW_TextSize(), 1, 6)
         if (y + h > bottom)
             h := bottom - y
         if (h < lineH + 8)
@@ -901,11 +923,11 @@ MW_QTLayoutBody() {
             h := 34
 
         r["num"].Move(left, y + 2, 18)
-        r["num"].Value := (i = MW_QTSel ? "▸" : "") i
+        MW_QTMarkRow(i)
         r["eng"].Move(left + 22, y + 2, 104)
         r["eng"].Value := job["engine"]["label"]
 
-        r["mdl"].Move(left + 22, y + 16, 104, 26)
+        r["mdl"].Move(left + 22, y + 18, 104, 26)
         r["mdl"].Value := model
         r["box"].Move(boxLeft, y, boxW, h)
         r["box"].Value := rowText
@@ -929,19 +951,6 @@ MW_RowModel(engine) {
     if !providers.Has(id)
         return ""
     return QT_Model(id, providers[id]["default_model"])
-}
-
-; Lines a string needs at a given width, counting its own newlines too — a
-; character count alone would under-measure a multi-paragraph selection.
-MW_WrappedLines(text, perLine) {
-    if (text = "")
-        return 1
-    total := 0
-    for part in StrSplit(StrReplace(text, "`r`n", "`n"), "`n") {
-        n := Ceil(StrLen(part) / perLine)
-        total += (n < 1) ? 1 : n
-    }
-    return (total < 1) ? 1 : total
 }
 
 MW_QTMove(delta) {
@@ -1921,7 +1930,13 @@ MW_OnSize(thisGui, minMax, width, height) {
         total := 400
     leftW  := Round(total * 0.56)
     rightW := total - leftW
-    h := height - 130
+    ; The panes run from where they start down to the status line, which
+    ; sits on the bottom edge. Until 2026-11-19 the status line stayed where
+    ; it was built and the panes stopped 130 short of the bottom whatever was
+    ; above them, which left a gap under them and the status line cut in half.
+    tabY := 44
+    try MW_Tabs.GetPos(, &tabY)
+    h := height - tabY - 34
     if (h < 160)
         h := 160
 
@@ -1947,8 +1962,15 @@ MW_OnSize(thisGui, minMax, width, height) {
         MW_Scratch.Move(clipX, clipY, inner, h - 34)
 
         MW_Tree.Move(pad + leftW + gap, , rightW, h)
-        MW_Status.Move(, , width - pad * 2)
+        MW_Status.Move(, tabY + h + 9, width - pad * 2)
     }
 
     MW_PlaceOpenTab()
+
+    ; The translations wrap to the width they now have, so their heights
+    ; have to follow. On a timer of its own: a drag sends a stream of these,
+    ; and each new one restarts the same timer, so it runs once at the end -
+    ; and not on this thread, in the middle of whatever it interrupted.
+    if (MW_ActiveTab() = 2)
+        SetTimer(MW_QTLayout, -60)
 }
